@@ -12,150 +12,93 @@ DocPivot simplifies the process of loading, transforming, and serializing rich-t
 
 - **Input Formats**: Extend Docling’s input capabilities to include additional JSON dialects (e.g., Lexical JSON) and other text-based formats.
 - **Output Formats**: Support serialization to additional formats like Lexical JSON, beyond Docling’s native Markdown, HTML, JSON, Text, and DocTags.
-- **Core Functionality**: Read documents into `DoclingDocument`, transform them, and serialize to target formats.
-- **Design Principle**: Reuse Docling’s abstractions (e.g., `BaseDocSerializer`, `BaseReader`) to avoid redundant implementations.
+- **Core Functionality**: Read documents into `DoclingDocument`, transform them, and serialize to target formats using the same instantiation/configuration patterns as Docling.
+- **Design Principle**: Reuse Docling’s abstractions (`BaseDocSerializer`, `BaseReader`) to avoid redundant implementations.
 
 ## Background
 
 ### Docling Capabilities
 
-Docling is a powerful tool for parsing and converting documents into a unified `DoclingDocument` model. Its key features include:
+Docling parses and converts documents into a unified `DoclingDocument` model with:
 
 - **Supported Input Formats**: PDF, DOCX, XLSX, PPTX, Markdown, AsciiDoc, HTML, XHTML, CSV, PNG, JPG, TIFF, BMP, WEBP.
 - **Supported Output Formats**: HTML, Markdown, JSON (Docling-specific), Text, DocTags.
-- **Serialization**: Uses a hierarchy of serializers (`BaseDocSerializer`, `BaseTextSerializer`, etc.) to convert `DoclingDocument` into textual representations.
-- **Limitations**: Limited to specific dialects of Markdown and JSON, lacking support for formats like Lexical JSON used in React’s Lexical editor.
+- **Serialization**: Serializer classes are instantiated with the `DoclingDocument` and optional parameters or component serializers.
+- **Limitations**: No native support for formats like Lexical JSON.
 
 ### DocPivot’s Role
 
 DocPivot extends Docling by:
 - Adding support for reading non-native formats (e.g., Lexical JSON).
 - Providing serializers for additional output formats.
-- Maintaining Docling’s class hierarchy and API patterns for seamless integration.
+- Maintaining Docling’s class hierarchy, API style, and instantiation patterns for seamless integration.
 
 ## Requirements
 
 ### Functional Requirements
 
 1. **Readers**:
-   - Implement `DoclingJsonReader` to load Docling JSON files into `DoclingDocument`.
+   - Implement `DoclingJsonReader` to load `.docling.json` into `DoclingDocument`.
    - Implement `LexicalJsonReader` to convert Lexical JSON into `DoclingDocument`.
    - Provide a `BaseReader` class for extensibility, allowing custom readers for other formats.
-   - Intelligently detect input file formats based on file extension or content analysis.
+   - Detect formats by file extension or content signature.
 
 2. **Serializers**:
-   - Reuse Docling’s `MarkdownDocSerializer` and `DocTagsDocSerializer` for native formats.
+   - Follow Docling’s serializer usage pattern:
+     - Instantiate with `doc=DoclingDocument`, plus optional component serializers or parameter objects.
+     - Call `.serialize()` to return a `SerializationResult` with `.text` and optional `.spans`.
+   - Reuse Docling’s built-in serializers where possible (`MarkdownDocSerializer`, `DocTagsDocSerializer`, `HTMLDocSerializer`, `TextDocSerializer`).
    - Implement `LexicalDocSerializer` for serializing `DoclingDocument` to Lexical JSON.
-   - Support extensible serializers via a `BaseDocSerializer` subclass for custom formats (e.g., HTML, alternative Markdown dialects).
+   - Support user-configurable parameters (e.g., `MarkdownParams`, `HTMLParams`) and pluggable component serializers (e.g., custom picture/table serializers).
 
 3. **Serializer Provider**:
-   - Implement a `SerializerProvider` to instantiate the appropriate serializer based on the requested format (e.g., "markdown", "lexical", "doctags").
-   - Allow registration of custom serializers for future extensibility.
+   - Implement `SerializerProvider` to return an instantiated serializer given a format string.
+   - Allow registration of new serializers, following Docling’s instantiation style.
 
 4. **Core API**:
-   - Provide a simple, Docling-inspired API for loading, transforming, and serializing documents.
-   - Ensure compatibility with Docling’s `DocumentConverter` and `DoclingDocument` models.
+   - Provide Docling-inspired methods for:
+     - `load_data` (via a reader)
+     - `serialize` (via a serializer instantiated with `doc=...`)
+   - Maintain API parity with `DocumentConverter` → `serializer.serialize()` flow.
 
 5. **Extensibility**:
-   - Allow developers to add custom readers and serializers by subclassing `BaseReader` and `BaseDocSerializer`.
-   - Support dynamic registration of new formats in the `SerializerProvider`.
+   - Allow custom serializers with the same constructor signature (`doc`, optional params, optional component serializers).
+   - Allow custom readers by subclassing `BaseReader`.
 
 ### Non-Functional Requirements
 
-- **Performance**: Conversion and serialization should be efficient, leveraging Docling’s optimized pipeline.
-- **Compatibility**: Fully compatible with Docling’s latest version and its `docling-core` library.
-- **Maintainability**: Follow Docling’s naming conventions, class hierarchies, and design patterns to ensure consistency.
-- **Usability**: Provide clear documentation and example usage for developers.
-- **Error Handling**: Gracefully handle unsupported formats with meaningful error messages.
+- **Performance**: Serialization should remain as efficient as Docling’s base serializers.
+- **Compatibility**: Full compatibility with Docling’s `docling-core`.
+- **Maintainability**: Match Docling’s naming conventions, instantiation patterns, and module structure.
+- **Usability**: Include examples for both simple and customized serialization flows.
+- **Error Handling**: Raise clear errors for unsupported formats.
 
 ## Design Patterns
 
-DocPivot will adopt Docling’s design patterns to ensure consistency:
+DocPivot mirrors Docling’s patterns:
 
-- **Reader Pattern**: Use `BaseReader` as an abstract base class for format-specific readers (e.g., `DoclingJsonReader`, `LexicalJsonReader`).
-- **Serializer Pattern**: Use `BaseDocSerializer` for format-specific serializers, with a `serialize()` method returning a `SerializationResult` (text and optional spans).
-- **Factory Pattern**: Implement `SerializerProvider` as a factory to return the appropriate serializer based on the requested format.
-- **Extensibility**: Support custom readers and serializers via subclassing and registration.
+- **Reader Pattern**: `BaseReader` for format-specific loaders.
+- **Serializer Pattern**: `BaseDocSerializer` subclasses for output formats.
+- **Configuration Pattern**: Pass optional parameter objects and component serializers at instantiation.
+- **Factory Pattern**: `SerializerProvider` returns fully-configured serializer instances.
 
 ## API Specification
 
 ### Key Classes and Methods
 
-1. **Readers**:
-   - `BaseReader`:
-     - Abstract method: `load_data(file_path: str, **kwargs) -> DoclingDocument`
-   - `DoclingJsonReader(BaseReader)`:
-     - Loads Docling JSON into `DoclingDocument`.
-   - `LexicalJsonReader(BaseReader)`:
-     - Converts Lexical JSON to `DoclingDocument`.
+**Readers**
+- `BaseReader.load_data(file_path: str, **kwargs) -> DoclingDocument`
+- `DoclingJsonReader(BaseReader)`
+- `LexicalJsonReader(BaseReader)`
 
-2. **Serializers**:
-   - `BaseDocSerializer`:
-     - Abstract method: `serialize(doc: DoclingDocument, **kwargs) -> SerializationResult`
-   - `LexicalDocSerializer(BaseDocSerializer)`:
-     - Serializes `DoclingDocument` to Lexical JSON.
-   - Reuse Docling’s `MarkdownDocSerializer` and `DocTagsDocSerializer`.
+**Serializers**
+- `BaseDocSerializer.serialize(doc, **kwargs) -> SerializationResult`
+- `LexicalDocSerializer(BaseDocSerializer)`
+- Built-in serializers reused from Docling: `MarkdownDocSerializer`, `DocTagsDocSerializer`, `HTMLDocSerializer`, `TextDocSerializer`.
 
-3. **SerializerProvider**:
-   - Method: `get_serializer(format: str) -> BaseDocSerializer`
-   - Method: `register_serializer(format: str, serializer: BaseDocSerializer)`
-
-### Example Usage
-
-```python
-from pathlib import Path
-from docpivot.io.readers import DoclingJsonReader, LexicalJsonReader
-from docpivot.io.serializers import SerializerProvider
-
-# Load a Docling JSON file
-docling_reader = DoclingJsonReader()
-doc = docling_reader.load_data("data/2025-07-03-Test-PDF-Styles.docling.json")
-
-# Serialize to Markdown
-provider = SerializerProvider()
-md_serializer = provider.get_serializer("markdown")
-markdown_out = md_serializer.serialize(doc).text
-Path("output.md").write_text(markdown_out, encoding="utf-8")
-
-# Load a Lexical JSON file
-try:
-    lexical_reader = LexicalJsonReader()
-    doc = lexical_reader.load_data("data/sample.lexical.json")
-except NotImplementedError as e:
-    print(f"Error: {e}")
-
-# Serialize to Lexical JSON
-lexical_serializer = provider.get_serializer("lexical")
-lexical_out = lexical_serializer.serialize(doc).text
-Path("output.lexical.json").write_text(lexical_out, encoding="utf-8")
-```
-
-### Extending DocPivot
-
-#### Custom Reader
-```python
-from docpivot.io.readers.basereader import BaseReader
-from docling_core.types.doc.document import DoclingDocument
-
-class CustomReader(BaseReader):
-    def load_data(self, file_path: str, **kwargs) -> DoclingDocument:
-        raw_data = ...  # Read custom format
-        return DoclingDocument.model_validate(raw_data)
-```
-
-#### Custom Serializer
-```python
-from docling_core.transforms.serializer.base import BaseDocSerializer, SerializationResult
-
-class CustomSerializer(BaseDocSerializer):
-    def serialize(self, doc: DoclingDocument, **kwargs) -> SerializationResult:
-        text = ...  # Convert to custom format
-        return SerializationResult(text=text, spans=[])
-
-# Register custom serializer
-provider = SerializerProvider()
-provider.register_serializer("custom", CustomSerializer)
-```
+**SerializerProvider**
+- `get_serializer(format: str, **kwargs) -> BaseDocSerializer`
+- `register_serializer(format: str, serializer_cls: type[BaseDocSerializer])`
 
 ## Implementation Notes
 
@@ -177,6 +120,58 @@ provider.register_serializer("custom", CustomSerializer)
 - **Format Detection**: Implement logic to detect input formats based on file extensions (e.g., `.docling.json`, `.lexical.json`) or content signatures.
 - **Error Handling**: Raise `NotImplementedError` for unsupported formats, with clear messages guiding users to extend functionality.
 
+## Example Usage
+
+### Basic Markdown Export
+```python
+from docpivot.io.readers import DoclingJsonReader
+from docling_core.transforms.serializer.markdown import MarkdownDocSerializer
+
+doc = DoclingJsonReader().load_data("sample.docling.json")
+
+serializer = MarkdownDocSerializer(doc=doc)
+ser_result = serializer.serialize()
+print(ser_result.text)
+```
+
+### Customized Markdown Export
+```python
+from docling_core.transforms.chunker.hierarchical_chunker import TripletTableSerializer
+from docling_core.transforms.serializer.markdown import MarkdownParams, MarkdownDocSerializer
+
+serializer = MarkdownDocSerializer(
+    doc=doc,
+    table_serializer=TripletTableSerializer(),
+    params=MarkdownParams(image_placeholder="(no image)")
+)
+ser_result = serializer.serialize()
+print(ser_result.text)
+```
+
+### Lexical Export
+```python
+from docpivot.io.serializers.lexicaldocserializer import LexicalDocSerializer
+
+serializer = LexicalDocSerializer(doc=doc)
+ser_result = serializer.serialize()
+print(ser_result.text)
+```
+
+### Custom Picture Serializer
+```python
+from docling_core.transforms.serializer.markdown import MarkdownDocSerializer
+from my_custom.picture_serializer import AnnotationPictureSerializer
+
+serializer = MarkdownDocSerializer(
+    doc=doc,
+    picture_serializer=AnnotationPictureSerializer(),
+)
+ser_result = serializer.serialize()
+print(ser_result.text)
+```
+
+---
+
 ## Status
 
 | Capability                              | Module / Class                         | Status         |
@@ -184,12 +179,15 @@ provider.register_serializer("custom", CustomSerializer)
 | Read *.docling.json* → `DoclingDocument`| `DoclingJsonReader`                    | ✅ Stable       |
 | Read *.lexical.json* → `DoclingDocument`| `LexicalJsonReader`                    | 🚧 In Progress  |
 | Serialize to Markdown                   | `MarkdownDocSerializer` (Docling)      | ✅ Stable       |
-| Serialize to DocTags                   | `DocTagsDocSerializer` (Docling)       | ✅ Stable       |
+| Serialize to DocTags                    | `DocTagsDocSerializer` (Docling)       | ✅ Stable       |
+| Serialize to HTML                       | `HTMLDocSerializer` (Docling)          | ✅ Stable       |
+| Serialize to Text                       | `TextDocSerializer` (Docling)          | ✅ Stable       |
 | Serialize to Lexical JSON               | `LexicalDocSerializer`                 | ⚠️ Prototype   |
 
 ## Next Steps
 
-- Implement `LexicalJsonReader` to parse Lexical JSON into `DoclingDocument`.
-- Develop `LexicalDocSerializer` for valid Lexical JSON output compatible with the Lexical editor.
-- Add format detection logic for automatic input format identification.
-- Provide comprehensive documentation and examples in a `README.md`.
+- Implement `LexicalJsonReader`.
+- Implement `LexicalDocSerializer`.
+- Integrate Docling-style parameter/configuration patterns in all DocPivot serializers.
+- Add automatic format detection.
+- Document advanced customization patterns for component serializers.
