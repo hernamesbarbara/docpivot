@@ -126,6 +126,8 @@ def convert_document(
     # Write to file
     output_file = Path(output_path)
     try:
+        # Create parent directories if they don't exist
+        output_file.parent.mkdir(parents=True, exist_ok=True)
         output_file.write_text(result.text, encoding="utf-8")
         return str(output_file)
     except IOError as e:

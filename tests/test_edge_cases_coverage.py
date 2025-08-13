@@ -127,7 +127,8 @@ class TestEdgeCasesForCoverage:
             
             return counts
         
-        type_counts = count_element_types(data)
+        # Start counting from the root element, not the top-level data
+        type_counts = count_element_types(data.get('root', {}))
         
         # Should have processed some element types 
         # Note: The exact types depend on the document structure
