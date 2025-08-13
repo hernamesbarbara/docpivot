@@ -33,6 +33,22 @@ def sample_docling_document() -> DoclingDocument:
 
 
 @pytest.fixture
+def sample_docling_document_from_file(sample_docling_json_path: Path) -> DoclingDocument:
+    """Fixture providing a DoclingDocument loaded from sample file."""
+    from docpivot.io.readers.doclingjsonreader import DoclingJsonReader
+    reader = DoclingJsonReader()
+    return reader.load_data(sample_docling_json_path)
+
+
+@pytest.fixture
+def sample_lexical_document_from_file(sample_lexical_json_path: Path) -> DoclingDocument:
+    """Fixture providing a DoclingDocument loaded from sample lexical file."""
+    from docpivot.io.readers.lexicaljsonreader import LexicalJsonReader
+    reader = LexicalJsonReader()
+    return reader.load_data(sample_lexical_json_path)
+
+
+@pytest.fixture
 def temp_directory(tmp_path: Path) -> Path:
     """Fixture providing a temporary directory for testing."""
     return tmp_path
