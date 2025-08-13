@@ -168,3 +168,20 @@ class DoclingJsonReader(BaseReader):
                 f"Expected schema_name '{self.EXPECTED_SCHEMA_NAME}', "
                 f"got '{schema_name}'"
             )
+
+    def _get_format_error_message(self, file_path: str) -> str:
+        """Generate a descriptive error message for unsupported file format.
+
+        Args:
+            file_path: Path to the unsupported file
+
+        Returns:
+            str: Error message describing the issue and supported formats
+        """
+        return (
+            f"Unsupported file format: '{file_path}'\n"
+            f"Supported formats:\n"
+            f"  - .docling.json files (Docling native format)\n"
+            f"  - .json files with DoclingDocument content\n"
+            f"\nTo add support for additional formats, extend BaseReader."
+        )

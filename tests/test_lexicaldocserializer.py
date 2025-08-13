@@ -1,10 +1,6 @@
 """Tests for LexicalDocSerializer class."""
 
 import json
-from pathlib import Path
-from typing import Any, Dict
-
-import pytest
 from docling_core.transforms.serializer.base import SerializationResult
 
 from docpivot.io.readers.doclingjsonreader import DoclingJsonReader

@@ -47,7 +47,8 @@ class SerializerProvider:
             **kwargs: Additional parameters to pass to the serializer constructor.
 
         Returns:
-            AnySerializer: Configured serializer instance (BaseDocSerializer or LexicalDocSerializer).
+            AnySerializer: Configured serializer instance
+                (BaseDocSerializer or LexicalDocSerializer).
 
         Raises:
             ValueError: If the format is not supported.
