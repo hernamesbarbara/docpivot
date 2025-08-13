@@ -1,62 +1,75 @@
-"""High-level workflow functions for DocPivot end-to-end processing."""
+"""High-level workflow functions for end-to-end document processing."""
 
 from pathlib import Path
-from typing import Optional, Union, Any
-from docling_core.types import DoclingDocument
+from typing import Any, Optional, Union
+
 from docling_core.transforms.serializer.base import SerializationResult
+from docling_core.types import DoclingDocument
 
-from docpivot.io.readers.readerfactory import ReaderFactory
-from docpivot.io.serializers.serializerprovider import SerializerProvider
+from docpivot.io.readers import ReaderFactory
+from docpivot.io.serializers import SerializerProvider
 
 
-def load_document(file_path: Union[str, Path], **kwargs) -> DoclingDocument:
+def load_document(file_path: Union[str, Path], **kwargs: Any) -> DoclingDocument:
     """Auto-detect format and load document into DoclingDocument.
     
-    Uses ReaderFactory for format detection and reader selection.
+    This function provides a simple interface for loading any supported document
+    format by automatically detecting the format and selecting the appropriate
+    reader.
     
     Args:
-        file_path: Path to the document file
-        **kwargs: Additional arguments passed to the reader
+        file_path: Path to the document file to load
+        **kwargs: Additional parameters to pass to the reader
         
     Returns:
-        DoclingDocument: Loaded document
+        DoclingDocument: The loaded document
         
     Raises:
-        FileNotFoundError: If file doesn't exist
-        UnsupportedFormatError: If format is not supported
-        ValueError: If file content is invalid
+        FileNotFoundError: If the file does not exist
+        UnsupportedFormatError: If no reader can handle the file format
+        ValueError: If the file format is invalid or corrupted
+        
+    Example:
+        >>> doc = load_document("sample.docling.json")
+        >>> print(f"Loaded document: {doc.name}")
     """
     factory = ReaderFactory()
     reader = factory.get_reader(file_path, **kwargs)
-    return reader.load_data(file_path)
+    return reader.load_data(file_path, **kwargs)
 
 
 def load_and_serialize(
     input_path: Union[str, Path], 
     output_format: str, 
-    **kwargs
+    **kwargs: Any
 ) -> SerializationResult:
-    """Complete workflow: load document and serialize to target format in one call.
+    """Load document and serialize to target format in one call.
     
-    Combines ReaderFactory + SerializerProvider for end-to-end processing.
+    This function combines document loading and serialization into a single
+    operation, automatically detecting the input format and using the
+    appropriate serializer for the output format.
     
     Args:
         input_path: Path to the input document file
-        output_format: Target serialization format (markdown, html, lexical, doctags)
-        **kwargs: Additional arguments passed to serializer
+        output_format: Target output format (e.g., "markdown", "html", "lexical")
+        **kwargs: Additional parameters to pass to the serializer
         
     Returns:
-        SerializationResult: Serialized output
+        SerializationResult: The serialized document with .text property
         
     Raises:
-        FileNotFoundError: If input file doesn't exist
-        UnsupportedFormatError: If input or output format is not supported
-        ValueError: If file content or serializer parameters are invalid
+        FileNotFoundError: If the input file does not exist
+        UnsupportedFormatError: If input format is not supported
+        ValueError: If output format is not supported or parameters are invalid
+        
+    Example:
+        >>> result = load_and_serialize("sample.docling.json", "markdown")
+        >>> print(result.text)
     """
-    # Load document using auto-detection
+    # Load the document using automatic format detection
     doc = load_document(input_path)
     
-    # Get serializer and serialize
+    # Get the appropriate serializer and serialize
     provider = SerializerProvider()
     serializer = provider.get_serializer(output_format, doc=doc, **kwargs)
     return serializer.serialize()
@@ -66,36 +79,54 @@ def convert_document(
     input_path: Union[str, Path],
     output_format: str,
     output_path: Optional[Union[str, Path]] = None,
-    **kwargs
+    **kwargs: Any
 ) -> Optional[str]:
     """Complete conversion with optional file output.
     
-    If output_path provided, writes to file and returns path.
-    If output_path is None, returns serialized content as string.
+    This function performs a complete document conversion, optionally writing
+    the result to a file. It combines loading, serialization, and file I/O
+    into a single operation.
     
     Args:
         input_path: Path to the input document file
-        output_format: Target serialization format
-        output_path: Optional path to write output file
-        **kwargs: Additional arguments passed to serializer
+        output_format: Target output format (e.g., "markdown", "html", "lexical")
+        output_path: Optional path to write output file. If None, returns content as string
+        **kwargs: Additional parameters to pass to the serializer
         
     Returns:
-        Optional[str]: Output file path if written to file, None otherwise
+        Optional[str]: If output_path is None, returns serialized content as string.
+                      If output_path is provided, writes to file and returns the output path.
         
     Raises:
-        FileNotFoundError: If input file doesn't exist
-        UnsupportedFormatError: If input or output format is not supported
-        ValueError: If file content or serializer parameters are invalid
-        IOError: If unable to write output file
+        FileNotFoundError: If the input file does not exist
+        UnsupportedFormatError: If input format is not supported
+        ValueError: If output format is not supported or parameters are invalid
+        IOError: If there are issues writing the output file
+        
+    Examples:
+        >>> # Convert and return content as string
+        >>> content = convert_document("sample.docling.json", "markdown")
+        >>> print(content)
+        
+        >>> # Convert and write to file
+        >>> output_file = convert_document(
+        ...     "sample.docling.json", 
+        ...     "markdown", 
+        ...     "output.md"
+        ... )
+        >>> print(f"Converted document written to: {output_file}")
     """
-    # Load and serialize
+    # Load and serialize the document
     result = load_and_serialize(input_path, output_format, **kwargs)
     
-    if output_path is not None:
-        # Write to file
-        output_path = Path(output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(result.text, encoding='utf-8')
-        return str(output_path)
+    # Handle output
+    if output_path is None:
+        return result.text
     
-    return result.text
+    # Write to file
+    output_file = Path(output_path)
+    try:
+        output_file.write_text(result.text, encoding="utf-8")
+        return str(output_file)
+    except IOError as e:
+        raise IOError(f"Failed to write output file {output_path}: {e}") from e
