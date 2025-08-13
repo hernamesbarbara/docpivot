@@ -13,7 +13,7 @@ def temp_file() -> Generator[Path, None, None]:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as f:
         temp_path = Path(f.name)
         f.write(b"test content")
-    
+
     try:
         yield temp_path
     finally:
