@@ -20,6 +20,12 @@ class SerializerProvider:
     }
     
     @classmethod
+    def _get_lexical_serializer(cls) -> Type[BaseDocSerializer]:
+        """Import LexicalDocSerializer to avoid circular imports."""
+        from docpivot.io.serializers.lexicaldocserializer import LexicalDocSerializer
+        return LexicalDocSerializer
+    
+    @classmethod
     def get_serializer(
         cls,
         format_name: str,
@@ -41,10 +47,14 @@ class SerializerProvider:
         """
         format_key = format_name.lower().strip()
         
-        if format_key not in cls._serializers:
+        if format_key == "lexical":
+            serializer_cls = cls._get_lexical_serializer()
+            return serializer_cls(doc=doc, **kwargs)  # type: ignore[call-arg]
+        elif format_key not in cls._serializers:
+            supported_formats = list(cls._serializers.keys()) + ["lexical"]
             raise ValueError(
                 f"Unsupported format '{format_name}'. "
-                f"Supported formats: {', '.join(cls._serializers.keys())}"
+                f"Supported formats: {', '.join(supported_formats)}"
             )
         
         serializer_cls = cls._serializers[format_key]
@@ -81,7 +91,7 @@ class SerializerProvider:
         Returns:
             list[str]: List of supported format names.
         """
-        return list(cls._serializers.keys())
+        return list(cls._serializers.keys()) + ["lexical"]
     
     @classmethod
     def is_format_supported(cls, format_name: str) -> bool:
@@ -94,4 +104,4 @@ class SerializerProvider:
             bool: True if supported, False otherwise.
         """
         format_key = format_name.lower().strip()
-        return format_key in cls._serializers
+        return format_key in cls._serializers or format_key == "lexical"
