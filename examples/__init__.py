@@ -1,0 +1,1 @@
+"""Examples demonstrating docpivot usage."""

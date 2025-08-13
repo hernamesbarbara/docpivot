@@ -277,3 +277,8 @@ node_modules/
 # Task files
 # tasks.json
 # tasks/ 
+
+# MCP and semantic search
+mcp.log
+semantic.db
+.swissarmyhammer/
