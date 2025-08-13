@@ -7,9 +7,9 @@ from docpivot.io.readers.readerfactory import ReaderFactory
 from docpivot.io.readers.exceptions import UnsupportedFormatError
 
 __all__ = [
-    "BaseReader", 
-    "DoclingJsonReader", 
+    "BaseReader",
+    "DoclingJsonReader",
     "LexicalJsonReader",
     "ReaderFactory",
-    "UnsupportedFormatError"
+    "UnsupportedFormatError",
 ]
