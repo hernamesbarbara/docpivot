@@ -48,7 +48,7 @@ class SerializerProvider:
             )
         
         serializer_cls = cls._serializers[format_key]
-        return serializer_cls(doc=doc, **kwargs)
+        return serializer_cls(doc=doc, **kwargs)  # type: ignore[call-arg]
     
     @classmethod
     def register_serializer(
