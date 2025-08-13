@@ -1,1 +1,1 @@
-"""Test suite for DocPivot."""
+"""Test package for docpivot."""

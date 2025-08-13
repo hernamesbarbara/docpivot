@@ -1,1 +1,1 @@
-"""IO module for DocPivot readers and serializers."""
+"""IO module containing readers and serializers."""

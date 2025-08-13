@@ -283,3 +283,7 @@ node_modules/
 
 # Code review scratch files
 CODE_REVIEW.md
+
+# MCP and semantic search
+mcp.log
+semantic.db
