@@ -31,3 +31,15 @@ def sample_docling_document() -> DoclingDocument:
     # Create a minimal document structure for testing
     doc = DoclingDocument(name="test_document")
     return doc
+
+
+@pytest.fixture
+def temp_directory(tmp_path: Path) -> Path:
+    """Fixture providing a temporary directory for testing."""
+    return tmp_path
+
+
+@pytest.fixture
+def nonexistent_file(tmp_path: Path) -> Path:
+    """Fixture providing path to a nonexistent file for testing."""
+    return tmp_path / "nonexistent.json"
