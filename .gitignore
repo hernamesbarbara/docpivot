@@ -287,3 +287,4 @@ CODE_REVIEW.md
 # MCP and semantic search
 mcp.log
 semantic.db
+output.log
