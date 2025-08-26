@@ -417,7 +417,7 @@ class LexicalJsonReader(BaseReader):
         list_items = node.get("children", [])
 
         # Create text items for each list item
-        group_children = []
+        group_children: List[Dict[str, str]] = []
         for item in list_items:
             if item.get("type") == "listitem":
                 text_content = self._extract_text_from_children(

@@ -70,14 +70,13 @@ def load_document(file_path: Union[str, Path], **kwargs: Any) -> DoclingDocument
             reader = factory.get_reader(file_path, **kwargs)
             logger.debug(f"Selected reader: {type(reader).__name__}")
         except UnsupportedFormatError as e:
-            # Add recovery suggestions for unsupported formats
+            # Log recovery suggestions for unsupported formats
             logger.error(f"No reader found for {file_path_str}")
-            e.recovery_suggestions = [
-                "Check that the file extension matches the content format",
-                "Verify the file is not corrupted",
-                "Try converting the file to a supported format (.docling.json or .lexical.json)",
-                "Check DocPivot documentation for supported formats"
-            ]
+            logger.error("Recovery suggestions:")
+            logger.error("- Check that the file extension matches the content format")
+            logger.error("- Verify the file is not corrupted")
+            logger.error("- Try converting the file to a supported format (.docling.json or .lexical.json)")
+            logger.error("- Check DocPivot documentation for supported formats")
             raise
         except FileNotFoundError as e:
             # Convert FileNotFoundError to FileAccessError for consistent API
@@ -164,8 +163,8 @@ def load_document(file_path: Union[str, Path], **kwargs: Any) -> DoclingDocument
         context = {
             "file_path": file_path_str,
             "operation": "load_document",
-            "duration_ms": duration,
-            "kwargs": kwargs
+            "duration_ms": str(duration),
+            "kwargs": str(kwargs)
         }
         log_exception_with_context(logger, e, "document loading workflow", context)
         
@@ -329,8 +328,8 @@ def load_and_serialize(
             "input_path": input_path_str,
             "output_format": output_format,
             "operation": "load_and_serialize",
-            "duration_ms": duration,
-            "kwargs": kwargs
+            "duration_ms": str(duration),
+            "kwargs": str(kwargs)
         }
         log_exception_with_context(logger, e, "load and serialize workflow", context)
         

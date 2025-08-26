@@ -5,7 +5,7 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
 from docling_core.types import DoclingDocument
 from pydantic import ValidationError
@@ -38,7 +38,7 @@ class DoclingJsonReader(BaseReader):
     REQUIRED_SCHEMA_FIELDS = {"schema_name", "version"}
     EXPECTED_SCHEMA_NAME = "DoclingDocument"
 
-    def load_data(self, file_path: str, **kwargs: Any) -> DoclingDocument:
+    def load_data(self, file_path: Union[str, Path], **kwargs: Any) -> DoclingDocument:
         """Load document from .docling.json file into DoclingDocument.
 
         Args:
@@ -54,7 +54,8 @@ class DoclingJsonReader(BaseReader):
             SchemaValidationError: If the DoclingDocument schema is invalid
         """
         start_time = time.time()
-        logger.info(f"Loading DoclingDocument from {file_path}")
+        file_path_str = str(file_path)
+        logger.info(f"Loading DoclingDocument from {file_path_str}")
 
         try:
             # Validate file exists and is readable
@@ -62,16 +63,16 @@ class DoclingJsonReader(BaseReader):
                 path = self._validate_file_exists(file_path)
             except FileNotFoundError as e:
                 raise FileAccessError(
-                    f"File not found: {file_path}",
-                    file_path,
+                    f"File not found: {file_path_str}",
+                    file_path_str,
                     "check_existence",
                     context={"original_error": str(e)},
                     cause=e
                 ) from e
             except IsADirectoryError as e:
                 raise FileAccessError(
-                    f"Path is a directory, not a file: {file_path}",
-                    file_path,
+                    f"Path is a directory, not a file: {file_path_str}",
+                    file_path_str,
                     "check_file_type", 
                     context={"original_error": str(e)},
                     cause=e
@@ -83,26 +84,26 @@ class DoclingJsonReader(BaseReader):
 
             # Check format detection
             if not self.detect_format(file_path):
-                raise UnsupportedFormatError(file_path)
+                raise UnsupportedFormatError(file_path_str)
 
             # Read file content with error handling
             try:
                 json_content = path.read_text(encoding="utf-8")
-                logger.debug(f"Successfully read {len(json_content)} characters from {file_path}")
+                logger.debug(f"Successfully read {len(json_content)} characters from {file_path_str}")
             except UnicodeDecodeError as e:
                 raise FileAccessError(
-                    f"Unable to decode file '{file_path}' as UTF-8. "
+                    f"Unable to decode file '{file_path_str}' as UTF-8. "
                     f"Please ensure the file is properly encoded. Error: {e}",
-                    file_path,
+                    file_path_str,
                     "read_text",
                     context={"encoding": "utf-8", "original_error": str(e)},
                     cause=e
                 ) from e
             except IOError as e:
                 raise FileAccessError(
-                    f"Error reading file '{file_path}': {e}. "
+                    f"Error reading file '{file_path_str}': {e}. "
                     f"Please check file permissions and disk space.",
-                    file_path,
+                    file_path_str,
                     "read_file",
                     permission_issue=("permission" in str(e).lower()),
                     context={"original_error": str(e)},
@@ -110,10 +111,10 @@ class DoclingJsonReader(BaseReader):
                 ) from e
 
             # Parse and validate JSON content
-            json_data = validate_json_content(json_content, file_path)
+            json_data = validate_json_content(json_content, file_path_str)
             
             # Validate DoclingDocument structure using comprehensive validator
-            validate_docling_document(json_data, file_path)
+            validate_docling_document(json_data, file_path_str)
 
             # Create DoclingDocument from validated JSON data
             try:
@@ -121,8 +122,8 @@ class DoclingJsonReader(BaseReader):
                 
                 # Log successful completion with performance metrics
                 duration = (time.time() - start_time) * 1000
-                perf_logger.log_file_processing(file_path, "load", duration, file_size)
-                logger.info(f"Successfully loaded DoclingDocument from {file_path}")
+                perf_logger.log_file_processing(file_path_str, "load", duration, file_size)
+                logger.info(f"Successfully loaded DoclingDocument from {file_path_str}")
                 
                 return document
                 
@@ -170,7 +171,7 @@ class DoclingJsonReader(BaseReader):
                 cause=e
             ) from e
 
-    def detect_format(self, file_path: str) -> bool:
+    def detect_format(self, file_path: Union[str, Path]) -> bool:
         """Detect if this reader can handle the given file format.
 
         Checks for .docling.json extension and optionally validates the
@@ -281,7 +282,7 @@ class DoclingJsonReader(BaseReader):
                 f"got '{schema_name}'"
             )
 
-    def _get_format_error_message(self, file_path: str) -> str:
+    def _get_format_error_message(self, file_path: Union[str, Path]) -> str:
         """Generate a descriptive error message for unsupported file format.
 
         Args:

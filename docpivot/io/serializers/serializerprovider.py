@@ -56,7 +56,7 @@ class SerializerProvider:
         format_key = format_name.lower().strip()
 
         if format_key == "lexical":
-            serializer_cls = cls._get_lexical_serializer()
+            serializer_cls: Any = cls._get_lexical_serializer()
             return serializer_cls(doc=doc, **kwargs)  # type: ignore[call-arg]
         elif format_key not in cls._serializers:
             supported_formats = list(cls._serializers.keys()) + ["lexical"]

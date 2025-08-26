@@ -154,12 +154,12 @@ class ConfigurationError(DocPivotError):
         self.valid_options = valid_options or {}
 
 
-class UnsupportedFormatError(DocPivotError):
+class UnsupportedFormatError(DocPivotError, ValueError):
     """Raised when an unsupported file format is encountered.
 
     This exception provides clear error messages to guide users toward
     supported formats and implementation options. It maintains backward
-    compatibility with the existing ValueError inheritance.
+    compatibility by inheriting from ValueError.
     """
 
     def __init__(
@@ -305,12 +305,5 @@ class SchemaValidationError(ValidationError):
         self.missing_fields = missing_fields or []
 
 
-# Backward compatibility - maintain ValueError inheritance for UnsupportedFormatError
+# Backward compatibility is achieved by making UnsupportedFormatError inherit from ValueError
 # This allows existing code that catches ValueError to continue working
-class _LegacyUnsupportedFormatError(UnsupportedFormatError, ValueError):
-    """Backward-compatible version of UnsupportedFormatError that inherits from ValueError."""
-    pass
-
-
-# Replace the standard UnsupportedFormatError with the legacy version
-UnsupportedFormatError = _LegacyUnsupportedFormatError

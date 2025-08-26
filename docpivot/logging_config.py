@@ -175,7 +175,7 @@ class PerformanceLogger:
         """
         context = {"file": file_path, "operation": operation}
         if file_size_bytes is not None:
-            context["size_bytes"] = file_size_bytes
+            context["size_bytes"] = str(file_size_bytes)
             
         self.log_operation_time(f"File {operation}", duration_ms, context)
 
@@ -223,14 +223,14 @@ class ProgressLogger:
         self.logger.info(completion_msg)
 
 
-def create_error_context_logger(base_logger: logging.Logger) -> logging.Logger:
+def create_error_context_logger(base_logger: logging.Logger) -> logging.LoggerAdapter:
     """Create a logger adapter that includes error context information.
     
     Args:
         base_logger: Base logger to wrap
         
     Returns:
-        logging.Logger: Logger with error context capabilities
+        logging.LoggerAdapter: Logger adapter with error context capabilities
     """
     class ErrorContextAdapter(logging.LoggerAdapter):
         """Adapter that adds error context to log messages."""
