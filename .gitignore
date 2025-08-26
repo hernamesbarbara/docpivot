@@ -288,3 +288,4 @@ CODE_REVIEW.md
 mcp.log
 semantic.db
 output.log
+.claude/
