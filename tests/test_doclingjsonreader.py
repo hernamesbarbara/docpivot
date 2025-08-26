@@ -6,6 +6,7 @@ import pytest
 from docling_core.types import DoclingDocument
 
 from docpivot.io.readers.doclingjsonreader import DoclingJsonReader
+from docpivot.io.readers.exceptions import FileAccessError, UnsupportedFormatError, ValidationError, SchemaValidationError
 
 
 class TestDoclingJsonReader:
@@ -152,43 +153,43 @@ class TestDoclingJsonReader:
         assert doc.name == "test_document"
 
     def test_load_data_nonexistent_file(self, nonexistent_file):
-        """Test load_data raises FileNotFoundError for nonexistent file."""
+        """Test load_data raises FileAccessError for nonexistent file."""
         reader = DoclingJsonReader()
 
-        with pytest.raises(FileNotFoundError, match="File not found"):
+        with pytest.raises(FileAccessError, match="File not found"):
             reader.load_data(str(nonexistent_file))
 
     def test_load_data_directory_path(self, temp_directory):
-        """Test load_data raises IsADirectoryError for directory path."""
+        """Test load_data raises FileAccessError for directory path."""
         reader = DoclingJsonReader()
 
-        with pytest.raises(IsADirectoryError, match="Path is a directory"):
+        with pytest.raises(FileAccessError, match="Path is a directory"):
             reader.load_data(str(temp_directory))
 
     def test_load_data_unsupported_format(self, temp_directory):
-        """Test load_data raises ValueError for unsupported file format."""
+        """Test load_data raises UnsupportedFormatError for unsupported file format."""
         reader = DoclingJsonReader()
 
         # Create a file with unsupported extension
         txt_file = temp_directory / "test.txt"
         txt_file.write_text("content")
 
-        with pytest.raises(ValueError, match="Unsupported file format"):
+        with pytest.raises(UnsupportedFormatError):
             reader.load_data(str(txt_file))
 
     def test_load_data_invalid_json_syntax(self, temp_directory):
-        """Test load_data raises ValueError for invalid JSON syntax."""
+        """Test load_data raises ValidationError for invalid JSON syntax."""
         reader = DoclingJsonReader()
 
         # Create a .docling.json file with invalid JSON
         docling_file = temp_directory / "invalid.docling.json"
         docling_file.write_text('{"invalid": json}')  # Missing quotes around json
 
-        with pytest.raises(ValueError, match="Invalid JSON format"):
+        with pytest.raises(ValidationError, match="Invalid JSON format"):
             reader.load_data(str(docling_file))
 
     def test_load_data_missing_schema_name(self, temp_directory):
-        """Test load_data raises ValueError for missing schema_name."""
+        """Test load_data raises SchemaValidationError for missing schema_name."""
         reader = DoclingJsonReader()
 
         # Create a .docling.json file without schema_name
@@ -196,11 +197,11 @@ class TestDoclingJsonReader:
         content = {"version": "1.4.0", "name": "test"}
         docling_file.write_text(json.dumps(content))
 
-        with pytest.raises(ValueError, match="Missing required fields: schema_name"):
+        with pytest.raises(SchemaValidationError, match="missing required fields"):
             reader.load_data(str(docling_file))
 
     def test_load_data_missing_version(self, temp_directory):
-        """Test load_data raises ValueError for missing version."""
+        """Test load_data raises SchemaValidationError for missing version."""
         reader = DoclingJsonReader()
 
         # Create a .docling.json file without version
@@ -208,11 +209,11 @@ class TestDoclingJsonReader:
         content = {"schema_name": "DoclingDocument", "name": "test"}
         docling_file.write_text(json.dumps(content))
 
-        with pytest.raises(ValueError, match="Missing required fields: version"):
+        with pytest.raises(SchemaValidationError, match="missing required fields"):
             reader.load_data(str(docling_file))
 
     def test_load_data_wrong_schema_name(self, temp_directory):
-        """Test load_data raises ValueError for wrong schema_name."""
+        """Test load_data raises SchemaValidationError for wrong schema_name."""
         reader = DoclingJsonReader()
 
         # Create a .docling.json file with wrong schema_name
@@ -220,18 +221,18 @@ class TestDoclingJsonReader:
         content = {"schema_name": "WrongSchema", "version": "1.4.0"}
         docling_file.write_text(json.dumps(content))
 
-        with pytest.raises(ValueError, match="Expected schema_name 'DoclingDocument'"):
+        with pytest.raises(SchemaValidationError, match="missing required fields"):
             reader.load_data(str(docling_file))
 
     def test_load_data_non_object_json(self, temp_directory):
-        """Test load_data raises ValueError for non-object JSON."""
+        """Test load_data raises ValidationError for non-object JSON."""
         reader = DoclingJsonReader()
 
         # Create a .docling.json file with array instead of object
         docling_file = temp_directory / "array.docling.json"
         docling_file.write_text('["not", "an", "object"]')
 
-        with pytest.raises(ValueError, match="Expected JSON object, got list"):
+        with pytest.raises(ValidationError, match="Expected dict or DoclingDocument"):
             reader.load_data(str(docling_file))
 
     def test_load_data_pydantic_validation_error(self, temp_directory):
@@ -248,7 +249,7 @@ class TestDoclingJsonReader:
         }
         docling_file.write_text(json.dumps(content))
 
-        with pytest.raises(ValueError, match="Invalid DoclingDocument schema"):
+        with pytest.raises(SchemaValidationError, match="missing required fields"):
             reader.load_data(str(docling_file))
 
     def test_load_data_io_error(self, temp_directory):
@@ -261,7 +262,7 @@ class TestDoclingJsonReader:
         docling_file.chmod(0o000)  # Remove all permissions
 
         try:
-            with pytest.raises(IOError, match="Error reading file"):
+            with pytest.raises(FileAccessError, match="Error reading file"):
                 reader.load_data(str(docling_file))
         finally:
             # Restore permissions for cleanup

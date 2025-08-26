@@ -7,7 +7,7 @@ from docling_core.types import DoclingDocument
 from docling_core.transforms.serializer.base import SerializationResult
 
 from docpivot import load_document, load_and_serialize, convert_document
-from docpivot.io.readers.exceptions import UnsupportedFormatError
+from docpivot.io.readers.exceptions import UnsupportedFormatError, FileAccessError, SchemaValidationError, ConfigurationError
 
 
 class TestWorkflowFunctions:
@@ -92,22 +92,18 @@ class TestWorkflowFunctions:
     
     def test_load_and_serialize_with_custom_params(self, sample_docling_json_path: Path):
         """Test workflow with custom serializer parameters."""
-        # Try to test with markdown parameters if available
-        try:
-            from docling_core.transforms.serializers.markdown.params import MarkdownParams
-            params = MarkdownParams(image_placeholder="(no image)")
-            result = load_and_serialize(sample_docling_json_path, "markdown", params=params)
-            
-            assert isinstance(result, SerializationResult)
-            assert result.text is not None
-            
-            # If there are images, they should show the placeholder
-            if "(no image)" in result.text or len(result.text) > 0:
-                # Test passed - either placeholder found or no images to replace
-                assert True
-        except ImportError:
-            # Skip if markdown parameters not available
-            pytest.skip("MarkdownParams not available")
+        # Test with markdown parameters
+        from docling_core.transforms.serializer.markdown import MarkdownParams
+        params = MarkdownParams(image_placeholder="(no image)")
+        result = load_and_serialize(sample_docling_json_path, "markdown", params=params)
+        
+        assert isinstance(result, SerializationResult)
+        assert result.text is not None
+        
+        # If there are images, they should show the placeholder
+        if "(no image)" in result.text or len(result.text) > 0:
+            # Test passed - either placeholder found or no images to replace
+            assert True
     
     def test_convert_document_to_file(self, sample_docling_json_path: Path, temp_directory: Path):
         """Test convert_document with file output."""
@@ -161,7 +157,7 @@ class TestWorkflowErrorHandling:
         """Test load_document with nonexistent file."""
         nonexistent = temp_directory / "nonexistent.json"
         
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(FileAccessError):
             load_document(nonexistent)
     
     def test_load_document_unsupported_format(self, temp_directory: Path):
@@ -174,7 +170,7 @@ class TestWorkflowErrorHandling:
     
     def test_load_and_serialize_invalid_format(self, sample_docling_json_path: Path):
         """Test load_and_serialize with invalid output format."""
-        with pytest.raises(ValueError):
+        with pytest.raises(ConfigurationError):
             load_and_serialize(sample_docling_json_path, "invalid_format")
     
     def test_load_and_serialize_malformed_input(self, temp_directory: Path):
@@ -182,7 +178,7 @@ class TestWorkflowErrorHandling:
         malformed_file = temp_directory / "malformed.docling.json"
         malformed_file.write_text('{"invalid": "json structure"}')
         
-        with pytest.raises(ValueError):
+        with pytest.raises(SchemaValidationError):
             load_and_serialize(malformed_file, "markdown")
     
     def test_convert_document_io_error(self, sample_docling_json_path: Path):

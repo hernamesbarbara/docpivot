@@ -1,6 +1,8 @@
 """LexicalDocSerializer for converting DoclingDocument to Lexical JSON format."""
 
 import json
+import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union, Protocol
 
@@ -15,6 +17,17 @@ from docling_core.types.doc.document import (
     UnorderedList,
     PictureItem,
 )
+
+from docpivot.io.readers.exceptions import (
+    ValidationError,
+    TransformationError,
+    ConfigurationError
+)
+from docpivot.validation import validate_docling_document, parameter_validator
+from docpivot.logging_config import get_logger, PerformanceLogger, log_exception_with_context
+
+logger = get_logger(__name__)
+perf_logger = PerformanceLogger(logger)
 
 # Type aliases for method parameters
 TextItemType = Union[SectionHeaderItem, TextItem]
@@ -84,6 +97,7 @@ class LexicalParams:
         indent_json: Whether to indent JSON output for readability
         version: Lexical format version to use
         custom_root_attributes: Additional attributes to add to root node
+        skip_validation: Whether to skip DoclingDocument validation (for testing)
     """
 
     include_metadata: bool = True
@@ -91,6 +105,7 @@ class LexicalParams:
     indent_json: bool = True
     version: int = LEXICAL_VERSION
     custom_root_attributes: Optional[Dict[str, Any]] = field(default_factory=dict)
+    skip_validation: bool = False
 
 
 class ComponentSerializer(Protocol):
@@ -194,60 +209,237 @@ class LexicalDocSerializer:
 
         Returns:
             SerializationResult: The serialization result with Lexical JSON in .text
+
+        Raises:
+            ValidationError: If the document structure is invalid
+            TransformationError: If conversion to Lexical format fails
+            ConfigurationError: If serializer parameters are invalid
         """
-        lexical_data = self._transform_docling_to_lexical()
+        start_time = time.time()
+        logger.info("Serializing DoclingDocument to Lexical JSON format")
 
-        # Use configuration to determine JSON formatting
-        indent = JSON_INDENT_SIZE if self.params.indent_json else None
-        json_text = json.dumps(lexical_data, indent=indent, ensure_ascii=False)
+        try:
+            # Validate input document structure (skip if disabled for testing)
+            # Handle case where params might not be a valid LexicalParams object
+            should_validate = True
+            try:
+                should_validate = not self.params.skip_validation
+            except AttributeError:
+                # If params doesn't have skip_validation, assume we should validate
+                should_validate = True
+            
+            if should_validate:
+                validate_docling_document(self.doc)
+                logger.debug("DoclingDocument validation passed")
+            else:
+                logger.debug("DoclingDocument validation skipped")
 
-        return SerializationResult(text=json_text)
+            # Validate serializer parameters
+            self._validate_serializer_params()
+            logger.debug("Serializer parameters validation passed")
+
+            # Transform document structure with error handling
+            lexical_data = self._transform_docling_to_lexical()
+            logger.debug("DoclingDocument transformation to Lexical completed")
+
+            # Serialize to JSON with error handling
+            try:
+                indent = JSON_INDENT_SIZE if self.params.indent_json else None
+                json_text = json.dumps(lexical_data, indent=indent, ensure_ascii=False)
+                
+                # Log performance metrics
+                duration = (time.time() - start_time) * 1000
+                perf_logger.log_operation_time(
+                    "Lexical serialization", 
+                    duration, 
+                    {
+                        "output_size_chars": len(json_text),
+                        "indent_json": self.params.indent_json,
+                        "include_metadata": self.params.include_metadata
+                    }
+                )
+                logger.info("Successfully serialized DoclingDocument to Lexical JSON")
+                
+                return SerializationResult(text=json_text)
+                
+            except (TypeError, ValueError) as e:
+                raise TransformationError(
+                    f"Failed to serialize Lexical data to JSON: {e}. "
+                    f"The transformed data structure may be invalid.",
+                    transformation_type="lexical_to_json",
+                    recovery_suggestions=[
+                        "Check for circular references in the document structure",
+                        "Verify all data types are JSON-serializable",
+                        "Try with different serializer parameters"
+                    ],
+                    context={"original_error": str(e)},
+                    cause=e
+                ) from e
+
+        except (ValidationError, TransformationError, ConfigurationError):
+            # Re-raise our custom exceptions without wrapping
+            duration = (time.time() - start_time) * 1000
+            logger.error(f"Failed to serialize DoclingDocument to Lexical JSON after {duration:.2f}ms")
+            raise
+        except Exception as e:
+            # Handle unexpected errors with comprehensive context
+            duration = (time.time() - start_time) * 1000
+            context = {
+                "operation": "serialize",
+                "duration_ms": duration,
+                "serializer_params": self.params.__dict__ if hasattr(self.params, '__dict__') else str(self.params)
+            }
+            log_exception_with_context(logger, e, "Lexical JSON serialization", context)
+            
+            raise TransformationError(
+                f"Unexpected error during Lexical JSON serialization: {e}. "
+                f"Please check the document structure and try again.",
+                transformation_type="docling_to_lexical",
+                context=context,
+                cause=e
+            ) from e
+
+    def _validate_serializer_params(self) -> None:
+        """Validate serializer parameters.
+
+        Raises:
+            ConfigurationError: If parameters are invalid
+        """
+        # Validate params object
+        if not isinstance(self.params, LexicalParams):
+            raise ConfigurationError(
+                f"Invalid serializer parameters: expected LexicalParams, got {type(self.params).__name__}",
+                context={"actual_type": type(self.params).__name__}
+            )
+
+        # Validate version parameter
+        if not isinstance(self.params.version, int) or self.params.version < 1:
+            raise ConfigurationError(
+                f"Invalid version parameter: {self.params.version}. Version must be a positive integer.",
+                invalid_parameters=["version"],
+                valid_options={"version": ["Any positive integer"]},
+                context={"provided_version": self.params.version}
+            )
+
+        # Validate boolean parameters
+        bool_params = ["include_metadata", "preserve_formatting", "indent_json"]
+        for param_name in bool_params:
+            param_value = getattr(self.params, param_name)
+            if not isinstance(param_value, bool):
+                raise ConfigurationError(
+                    f"Invalid {param_name} parameter: {param_value}. Must be a boolean value.",
+                    invalid_parameters=[param_name],
+                    valid_options={param_name: ["true", "false"]},
+                    context={f"provided_{param_name}": param_value}
+                )
+
+        # Validate custom root attributes
+        if self.params.custom_root_attributes is not None:
+            if not isinstance(self.params.custom_root_attributes, dict):
+                raise ConfigurationError(
+                    f"Invalid custom_root_attributes: must be a dictionary, got {type(self.params.custom_root_attributes).__name__}",
+                    invalid_parameters=["custom_root_attributes"],
+                    context={"actual_type": type(self.params.custom_root_attributes).__name__}
+                )
+
+        logger.debug("Serializer parameters validation completed successfully")
 
     def _transform_docling_to_lexical(self) -> Dict[str, Any]:
         """Transform DoclingDocument to Lexical JSON structure.
 
         Returns:
             Dict representing the Lexical JSON structure
+
+        Raises:
+            TransformationError: If document transformation fails
         """
-        # Process body children to create Lexical nodes
-        lexical_children = self._process_body_children()
+        logger.debug("Starting DoclingDocument to Lexical transformation")
+        
+        try:
+            # Process body children to create Lexical nodes with error handling
+            try:
+                lexical_children = self._process_body_children()
+                logger.debug(f"Processed {len(lexical_children)} body children")
+            except Exception as e:
+                raise TransformationError(
+                    f"Failed to process document body children: {e}. "
+                    f"The document structure may be invalid or corrupted.",
+                    transformation_type="body_children_processing",
+                    recovery_suggestions=[
+                        "Check that the document body contains valid elements",
+                        "Verify all referenced elements exist in the document",
+                        "Ensure element references are properly formatted"
+                    ],
+                    context={"original_error": str(e)},
+                    cause=e
+                ) from e
 
-        # Create the root Lexical structure
-        root_node = {
-            "children": lexical_children,
-            "direction": TEXT_DIRECTION_LTR,
-            "format": DEFAULT_STYLE,
-            "indent": DEFAULT_INDENT,
-            "type": NODE_TYPE_ROOT,
-            "version": self.params.version,
-        }
-
-        # Add custom root attributes if provided
-        if self.params.custom_root_attributes:
-            root_node.update(self.params.custom_root_attributes)
-
-        lexical_data = {"root": root_node}
-
-        # Include document metadata if requested
-        if self.params.include_metadata and hasattr(self.doc, "name") and self.doc.name:
-            metadata = {
-                "document_name": self.doc.name,
-                "version": getattr(self.doc, "version", "1.0.0"),
+            # Create the root Lexical structure
+            root_node = {
+                "children": lexical_children,
+                "direction": TEXT_DIRECTION_LTR,
+                "format": DEFAULT_STYLE,
+                "indent": DEFAULT_INDENT,
+                "type": NODE_TYPE_ROOT,
+                "version": self.params.version,
             }
 
-            # Handle origin object serialization
-            if hasattr(self.doc, "origin") and self.doc.origin:
-                origin = self.doc.origin
-                metadata["origin"] = {
-                    "mimetype": getattr(origin, "mimetype", ""),
-                    "filename": getattr(origin, "filename", ""),
-                    "binary_hash": getattr(origin, "binary_hash", 0),
-                    "uri": getattr(origin, "uri", None),
-                }
+            # Add custom root attributes if provided
+            if self.params.custom_root_attributes:
+                try:
+                    root_node.update(self.params.custom_root_attributes)
+                    logger.debug(f"Added {len(self.params.custom_root_attributes)} custom root attributes")
+                except Exception as e:
+                    logger.warning(f"Failed to add custom root attributes: {e}. Proceeding without them.")
 
-            lexical_data["metadata"] = metadata
+            lexical_data = {"root": root_node}
 
-        return lexical_data
+            # Include document metadata if requested
+            if self.params.include_metadata:
+                try:
+                    metadata = {}
+                    if hasattr(self.doc, "name") and self.doc.name:
+                        metadata.update({
+                            "document_name": self.doc.name,
+                            "version": getattr(self.doc, "version", "1.0.0"),
+                        })
+
+                    # Handle origin object serialization
+                    if hasattr(self.doc, "origin") and self.doc.origin:
+                        origin = self.doc.origin
+                        metadata["origin"] = {
+                            "mimetype": getattr(origin, "mimetype", ""),
+                            "filename": getattr(origin, "filename", ""),
+                            "binary_hash": getattr(origin, "binary_hash", 0),
+                            "uri": getattr(origin, "uri", None),
+                        }
+
+                    if metadata:
+                        lexical_data["metadata"] = metadata
+                        logger.debug(f"Added metadata with {len(metadata)} fields")
+                except Exception as e:
+                    logger.warning(f"Failed to include document metadata: {e}. Proceeding without metadata.")
+
+            logger.debug("DoclingDocument to Lexical transformation completed successfully")
+            return lexical_data
+            
+        except TransformationError:
+            # Re-raise transformation errors without wrapping
+            raise
+        except Exception as e:
+            # Handle any unexpected errors during transformation
+            logger.error(f"Unexpected error during Lexical transformation: {e}")
+            raise TransformationError(
+                f"Unexpected error during DoclingDocument to Lexical transformation: {e}",
+                transformation_type="docling_to_lexical",
+                recovery_suggestions=[
+                    "Check the document structure for validity",
+                    "Verify all document elements are properly formed",
+                    "Try with simplified serializer parameters"
+                ],
+                context={"original_error": str(e)},
+                cause=e
+            ) from e
 
     def _process_body_children(self) -> List[Dict[str, Any]]:
         """Process DoclingDocument body children and convert to Lexical nodes.

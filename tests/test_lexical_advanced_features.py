@@ -277,12 +277,9 @@ class TestComponentSerializerSupport:
 class TestAdvancedLexicalFeatures:
     """Test advanced Lexical JSON features."""
 
-    def test_custom_root_attributes(self) -> None:
+    def test_custom_root_attributes(self, sample_docling_document) -> None:
         """Test custom root attributes in output."""
-        doc = MagicMock(spec=DoclingDocument)
-        doc.body = MagicMock()
-        doc.body.children = []
-        doc.name = "Test Doc"
+        doc = sample_docling_document
 
         custom_attrs = {"custom_attribute": "test_value", "theme": "dark"}
         params = LexicalParams(custom_root_attributes=custom_attrs)
@@ -296,22 +293,20 @@ class TestAdvancedLexicalFeatures:
         assert root_node["custom_attribute"] == "test_value"
         assert root_node["theme"] == "dark"
 
-    def test_metadata_inclusion(self) -> None:
+    def test_metadata_inclusion(self, sample_docling_document) -> None:
         """Test document metadata inclusion."""
-        doc = MagicMock(spec=DoclingDocument)
-        doc.body = MagicMock()
-        doc.body.children = []
-        doc.name = "Test Document"
-        doc.version = "2.0.0"
-
-        # Mock origin object
-        origin_mock = MagicMock()
-        origin_mock.mimetype = "application/pdf"
-        origin_mock.filename = "test.pdf"
-        origin_mock.binary_hash = 12345
-        origin_mock.uri = "file://test.pdf"
-        doc.origin = origin_mock
-
+        doc = sample_docling_document
+        
+        # Create a simple object with the origin attributes
+        class MockOrigin:
+            def __init__(self):
+                self.filename = "test.pdf"
+                self.mimetype = "application/pdf"
+                self.binary_hash = 12345
+                self.uri = "file:///test.pdf"
+                
+        doc.origin = MockOrigin()
+        
         params = LexicalParams(include_metadata=True)
         serializer = LexicalDocSerializer(doc=doc, params=params)
         result = serializer.serialize()
@@ -320,17 +315,18 @@ class TestAdvancedLexicalFeatures:
 
         assert "metadata" in lexical_data
         metadata = lexical_data["metadata"]
-        assert metadata["document_name"] == "Test Document"
-        assert metadata["version"] == "2.0.0"
-        assert metadata["origin"]["mimetype"] == "application/pdf"
+        assert metadata["document_name"] == doc.name
+        assert metadata["version"] == doc.version
+        assert "origin" in metadata
         assert metadata["origin"]["filename"] == "test.pdf"
+        assert metadata["origin"]["mimetype"] == "application/pdf"
+        if doc.origin:
+            assert "origin" in metadata
+            assert metadata["origin"]["mimetype"] == doc.origin.mimetype
 
-    def test_metadata_exclusion(self) -> None:
+    def test_metadata_exclusion(self, sample_docling_document) -> None:
         """Test metadata exclusion when disabled."""
-        doc = MagicMock(spec=DoclingDocument)
-        doc.body = MagicMock()
-        doc.body.children = []
-        doc.name = "Test Document"
+        doc = sample_docling_document
 
         params = LexicalParams(include_metadata=False)
         serializer = LexicalDocSerializer(doc=doc, params=params)
@@ -339,12 +335,9 @@ class TestAdvancedLexicalFeatures:
         lexical_data = json.loads(result.text)
         assert "metadata" not in lexical_data
 
-    def test_json_indent_control(self) -> None:
+    def test_json_indent_control(self, sample_docling_document) -> None:
         """Test JSON indentation control."""
-        doc = MagicMock(spec=DoclingDocument)
-        doc.body = MagicMock()
-        doc.body.children = []
-        doc.name = "Test"
+        doc = sample_docling_document
 
         # Test with indentation
         params_with_indent = LexicalParams(indent_json=True)
@@ -365,11 +358,9 @@ class TestAdvancedLexicalFeatures:
         assert "\n" in result_with_indent.text
         assert "\n" not in result_without_indent.text
 
-    def test_version_consistency(self) -> None:
+    def test_version_consistency(self, sample_docling_document) -> None:
         """Test version consistency across all nodes."""
-        doc = MagicMock(spec=DoclingDocument)
-        doc.body = MagicMock()
-        doc.body.children = []
+        doc = sample_docling_document
 
         custom_version = 3
         params = LexicalParams(version=custom_version)
