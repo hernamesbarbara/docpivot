@@ -7,6 +7,7 @@ from docling_core.types import DoclingDocument
 from docpivot.io.readers.doclingjsonreader import DoclingJsonReader
 from docpivot.io.readers.lexicaljsonreader import LexicalJsonReader
 from docpivot.io.readers.readerfactory import ReaderFactory
+from docpivot.io.readers.exceptions import SchemaValidationError
 
 
 class TestDoclingJsonReaderWithSampleData:
@@ -67,7 +68,7 @@ class TestDoclingJsonReaderWithSampleData:
         invalid_file.write_text('{"invalid": "json", "missing": "schema"}')
         
         reader = DoclingJsonReader()
-        with pytest.raises(ValueError):
+        with pytest.raises(SchemaValidationError):
             reader.load_data(invalid_file)
 
 

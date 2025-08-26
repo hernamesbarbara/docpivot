@@ -6,6 +6,7 @@ from docling_core.transforms.serializer.markdown import MarkdownParams, Markdown
 from docling_core.types import DoclingDocument
 
 from docpivot import load_and_serialize, load_document, SerializerProvider
+from docpivot.io.readers.exceptions import ConfigurationError, FileAccessError
 
 
 class TestPRDBasicUsage:
@@ -302,7 +303,7 @@ class TestPRDErrorHandling:
                 
     def test_unsupported_output_format_error(self, sample_docling_json_path):
         """Test error handling for unsupported output formats."""
-        with pytest.raises(ValueError, match="Unsupported format"):
+        with pytest.raises(ConfigurationError, match="Unsupported"):
             load_and_serialize(sample_docling_json_path, "unknown_format")
             
         with pytest.raises(ValueError, match="Unsupported format"):
@@ -311,9 +312,9 @@ class TestPRDErrorHandling:
             provider.get_serializer("unknown_format", doc=doc)
             
     def test_file_not_found_error_propagation(self):
-        """Test that FileNotFoundError is properly propagated."""
-        with pytest.raises(FileNotFoundError):
+        """Test that FileAccessError is properly propagated."""
+        with pytest.raises(FileAccessError):
             load_document("nonexistent_file.json")
             
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(FileAccessError):
             load_and_serialize("nonexistent_file.json", "markdown")

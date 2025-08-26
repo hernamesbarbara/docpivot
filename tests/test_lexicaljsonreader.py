@@ -6,7 +6,7 @@ import pytest
 from docling_core.types import DoclingDocument
 
 from docpivot.io.readers.lexicaljsonreader import LexicalJsonReader
-from docpivot.io.readers.exceptions import UnsupportedFormatError
+from docpivot.io.readers.exceptions import UnsupportedFormatError, FileAccessError, ValidationError, SchemaValidationError
 
 
 class TestLexicalJsonReader:
@@ -175,10 +175,10 @@ class TestLexicalJsonReader:
         assert doc.name == "test"
 
     def test_load_data_nonexistent_file(self, nonexistent_file):
-        """Test load_data raises FileNotFoundError for nonexistent file."""
+        """Test load_data raises FileAccessError for nonexistent file."""
         reader = LexicalJsonReader()
 
-        with pytest.raises(FileNotFoundError, match="File not found"):
+        with pytest.raises(FileAccessError, match="File not found"):
             reader.load_data(str(nonexistent_file))
 
     def test_load_data_unsupported_format(self, temp_directory):
@@ -193,18 +193,18 @@ class TestLexicalJsonReader:
             reader.load_data(str(txt_file))
 
     def test_load_data_invalid_json_syntax(self, temp_directory):
-        """Test load_data raises ValueError for invalid JSON syntax."""
+        """Test load_data raises ValidationError for invalid JSON syntax."""
         reader = LexicalJsonReader()
 
         # Create a .lexical.json file with invalid JSON
         lexical_file = temp_directory / "invalid.lexical.json"
         lexical_file.write_text('{"invalid": json}')  # Missing quotes around json
 
-        with pytest.raises(ValueError, match="Invalid JSON format"):
+        with pytest.raises(ValidationError, match="Invalid JSON format"):
             reader.load_data(str(lexical_file))
 
     def test_load_data_missing_root_field(self, temp_directory):
-        """Test load_data raises ValueError for missing root field."""
+        """Test load_data raises ValidationError for missing root field."""
         reader = LexicalJsonReader()
 
         # Create a .lexical.json file without root
@@ -212,11 +212,11 @@ class TestLexicalJsonReader:
         content = {"other": "content"}
         lexical_file.write_text(json.dumps(content))
 
-        with pytest.raises(ValueError, match="Missing required fields: root"):
+        with pytest.raises(SchemaValidationError, match="missing required fields"):
             reader.load_data(str(lexical_file))
 
     def test_load_data_invalid_root_structure(self, temp_directory):
-        """Test load_data raises ValueError for invalid root structure."""
+        """Test load_data raises ValidationError for invalid root structure."""
         reader = LexicalJsonReader()
 
         # Create a .lexical.json file with root as array instead of object
@@ -224,11 +224,11 @@ class TestLexicalJsonReader:
         content = {"root": []}
         lexical_file.write_text(json.dumps(content))
 
-        with pytest.raises(ValueError, match="'root' must be an object"):
+        with pytest.raises(ValidationError, match="'root' must be an object"):
             reader.load_data(str(lexical_file))
 
     def test_load_data_missing_root_children(self, temp_directory):
-        """Test load_data raises ValueError for missing root children."""
+        """Test load_data raises ValidationError for missing root children."""
         reader = LexicalJsonReader()
 
         # Create a .lexical.json file without children in root
@@ -236,18 +236,18 @@ class TestLexicalJsonReader:
         content = {"root": {"type": "root"}}
         lexical_file.write_text(json.dumps(content))
 
-        with pytest.raises(ValueError, match="root missing required fields: children"):
+        with pytest.raises(ValidationError, match="root node missing required fields"):
             reader.load_data(str(lexical_file))
 
     def test_load_data_non_object_json(self, temp_directory):
-        """Test load_data raises ValueError for non-object JSON."""
+        """Test load_data raises ValidationError for non-object JSON."""
         reader = LexicalJsonReader()
 
         # Create a .lexical.json file with array instead of object
         lexical_file = temp_directory / "array.lexical.json"
         lexical_file.write_text('["not", "an", "object"]')
 
-        with pytest.raises(ValueError, match="Expected JSON object, got list"):
+        with pytest.raises(ValidationError, match="Expected JSON object, got list"):
             reader.load_data(str(lexical_file))
 
     def test_load_data_with_list_content(self, temp_directory):

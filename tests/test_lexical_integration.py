@@ -21,18 +21,21 @@ class TestLexicalIntegration:
 
     def test_complete_document_serialization(self) -> None:
         """Test serialization of a complete document with all advanced features."""
-        # Create a mock DoclingDocument with various elements
-        doc = MagicMock(spec=DoclingDocument)
-        doc.name = "Advanced Test Document"
-        doc.version = "2.1.0"
+        # Create a real DoclingDocument with various elements
+        doc = DoclingDocument(
+            name="Advanced Test Document",
+            version="1.4.0"
+        )
 
-        # Mock origin
-        origin = MagicMock()
-        origin.mimetype = "application/pdf"
-        origin.filename = "advanced_test.pdf"
-        origin.binary_hash = 987654321
-        origin.uri = "file://advanced_test.pdf"
-        doc.origin = origin
+        # Create a simple origin object
+        class MockOrigin:
+            def __init__(self):
+                self.mimetype = "application/pdf"
+                self.filename = "advanced_test.pdf"
+                self.binary_hash = 987654321
+                self.uri = "file://advanced_test.pdf"
+                
+        doc.origin = MockOrigin()
 
         # Create body with various text items
         body = MagicMock()
@@ -76,9 +79,12 @@ class TestLexicalIntegration:
         body.children = [ref1, ref2, ref3, ref4]
         doc.body = body
 
-        # Mock empty collections
+        # Mock empty collections and required fields
         doc.tables = []
         doc.groups = []
+        doc.key_value_items = []
+        doc.furniture = []
+        doc.pages = {}
 
         # Set up advanced parameters
         params = LexicalParams(
@@ -89,7 +95,8 @@ class TestLexicalIntegration:
             custom_root_attributes={
                 "theme": "professional",
                 "editable": True
-            }
+            },
+            skip_validation=True  # Skip validation for mock objects
         )
 
         # Create custom image serializer
@@ -125,7 +132,7 @@ class TestLexicalIntegration:
         assert "metadata" in lexical_data
         metadata = lexical_data["metadata"]
         assert metadata["document_name"] == "Advanced Test Document"
-        assert metadata["version"] == "2.1.0"
+        assert metadata["version"] == "1.4.0"
         assert metadata["origin"]["filename"] == "advanced_test.pdf"
 
         # Verify content structure
@@ -174,6 +181,8 @@ class TestLexicalIntegration:
         """Test serialization of mixed content types with advanced features."""
         doc = MagicMock(spec=DoclingDocument)
         doc.name = "Mixed Content Document"
+        doc.version = "1.4.0"
+        doc.schema_name = "DoclingDocument"
 
         # Create text with multiple URLs and formatting
         text_with_links = MagicMock(spec=TextItem)
@@ -185,6 +194,19 @@ class TestLexicalIntegration:
         doc.pictures = []
         doc.tables = []
         doc.groups = []
+        doc.key_value_items = []
+        doc.furniture = []
+        doc.pages = {}
+        
+        # Mock origin with concrete values
+        class MockOrigin:
+            def __init__(self):
+                self.mimetype = "application/pdf"
+                self.filename = "mixed_content.pdf"
+                self.binary_hash = 123456789
+                self.uri = "file://mixed_content.pdf"
+        
+        doc.origin = MockOrigin()
 
         # Mock body
         body = MagicMock()
@@ -193,7 +215,7 @@ class TestLexicalIntegration:
         body.children = [ref1]
         doc.body = body
 
-        params = LexicalParams(preserve_formatting=True)
+        params = LexicalParams(preserve_formatting=True, skip_validation=True)
         serializer = LexicalDocSerializer(doc=doc, params=params)
         result = serializer.serialize()
 
@@ -214,6 +236,26 @@ class TestLexicalIntegration:
         """Test that configuration parameters properly override defaults."""
         doc = MagicMock(spec=DoclingDocument)
         doc.name = "Config Test"
+        doc.version = "1.4.0"
+        doc.schema_name = "DoclingDocument"
+        doc.texts = []
+        doc.pictures = []
+        doc.tables = []
+        doc.groups = []
+        doc.key_value_items = []
+        doc.furniture = []
+        doc.pages = {}
+        
+        # Mock origin with concrete values
+        class MockOrigin:
+            def __init__(self):
+                self.mimetype = "application/pdf"
+                self.filename = "config_test.pdf"
+                self.binary_hash = 123456789
+                self.uri = "file://config_test.pdf"
+        
+        doc.origin = MockOrigin()
+        
         doc.body = MagicMock()
         doc.body.children = []
 
@@ -221,7 +263,8 @@ class TestLexicalIntegration:
         params_no_formatting = LexicalParams(
             preserve_formatting=False,
             include_metadata=False,
-            indent_json=False
+            indent_json=False,
+            skip_validation=True  # Skip validation for mock objects
         )
 
         serializer = LexicalDocSerializer(doc=doc, params=params_no_formatting)
@@ -243,6 +286,8 @@ class TestLexicalIntegration:
         """Test that advanced features handle errors gracefully."""
         doc = MagicMock(spec=DoclingDocument)
         doc.name = "Error Test"
+        doc.version = "1.4.0"
+        doc.schema_name = "DoclingDocument"
 
         # Create malformed text item
         malformed_text = MagicMock(spec=TextItem)
@@ -253,6 +298,19 @@ class TestLexicalIntegration:
         doc.pictures = []
         doc.tables = []
         doc.groups = []
+        doc.key_value_items = []
+        doc.furniture = []
+        doc.pages = {}
+        
+        # Mock origin with concrete values
+        class MockOrigin:
+            def __init__(self):
+                self.mimetype = "application/pdf"
+                self.filename = "error_test.pdf"
+                self.binary_hash = 123456789
+                self.uri = "file://error_test.pdf"
+        
+        doc.origin = MockOrigin()
 
         # Mock body with reference to malformed text
         body = MagicMock()
@@ -262,7 +320,8 @@ class TestLexicalIntegration:
         doc.body = body
 
         # Should handle errors gracefully
-        serializer = LexicalDocSerializer(doc=doc)
+        params = LexicalParams(skip_validation=True)  # Skip validation for mock objects
+        serializer = LexicalDocSerializer(doc=doc, params=params)
         result = serializer.serialize()
 
         # Should still produce valid JSON

@@ -209,19 +209,14 @@ class TestSerializerProviderWithSampleData:
         provider = SerializerProvider()
         
         # Test markdown with custom image placeholder
-        try:
-            from docling_core.transforms.serializers.markdown.md_serializer import MarkdownSerializer
-            from docling_core.transforms.serializers.markdown.params import MarkdownParams
-            
-            params = MarkdownParams(image_placeholder="(no image)")
-            serializer = provider.get_serializer("markdown", doc=sample_docling_document_from_file, params=params)
-            result = serializer.serialize()
-            
-            assert isinstance(result, SerializationResult)
-            assert result.text is not None
-        except ImportError:
-            # Skip if markdown serializer not available
-            pytest.skip("MarkdownSerializer not available")
+        from docling_core.transforms.serializer.markdown import MarkdownParams
+        
+        params = MarkdownParams(image_placeholder="(no image)")
+        serializer = provider.get_serializer("markdown", doc=sample_docling_document_from_file, params=params)
+        result = serializer.serialize()
+        
+        assert isinstance(result, SerializationResult)
+        assert result.text is not None
 
 
 class TestRoundTripConversions:

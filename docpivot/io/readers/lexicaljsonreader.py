@@ -1,6 +1,8 @@
 """LexicalJsonReader for loading Lexical JSON files into DoclingDocument objects."""
 
 import json
+import logging
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Union
 
@@ -8,7 +10,17 @@ from docling_core.types import DoclingDocument
 from pydantic import ValidationError
 
 from .basereader import BaseReader
-from .exceptions import UnsupportedFormatError
+from .exceptions import (
+    UnsupportedFormatError,
+    ValidationError as DocPivotValidationError,
+    TransformationError,
+    FileAccessError
+)
+from docpivot.validation import validate_lexical_json, validate_json_content
+from docpivot.logging_config import get_logger, PerformanceLogger, log_exception_with_context
+
+logger = get_logger(__name__)
+perf_logger = PerformanceLogger(logger)
 
 
 class LexicalJsonReader(BaseReader):
@@ -33,38 +45,125 @@ class LexicalJsonReader(BaseReader):
             DoclingDocument: The loaded document as a DoclingDocument object
 
         Raises:
-            FileNotFoundError: If the file does not exist
+            FileAccessError: If the file cannot be accessed or read
+            ValidationError: If the JSON format is invalid
             UnsupportedFormatError: If the file format is not supported
-            ValueError: If the JSON is invalid or malformed
-            IOError: If there are issues reading the file
+            TransformationError: If conversion to DoclingDocument fails
         """
-        # Validate file exists and is readable
-        path = self._validate_file_exists(file_path)
-
-        # Check format detection
-        if not self.detect_format(file_path):
-            raise UnsupportedFormatError(str(file_path))
+        start_time = time.time()
+        file_path_str = str(file_path)
+        logger.info(f"Loading Lexical JSON from {file_path_str}")
 
         try:
-            # Read and parse JSON file
-            json_content = path.read_text(encoding="utf-8")
-
-            # Parse JSON content
+            # Validate file exists and is readable
             try:
-                json_data = json.loads(json_content)
-            except json.JSONDecodeError as e:
-                raise ValueError(
-                    f"Invalid JSON format in file '{file_path}': {e}"
+                path = self._validate_file_exists(file_path)
+            except FileNotFoundError as e:
+                raise FileAccessError(
+                    f"File not found: {file_path}",
+                    file_path_str,
+                    "check_existence",
+                    context={"original_error": str(e)},
+                    cause=e
+                ) from e
+            except IsADirectoryError as e:
+                raise FileAccessError(
+                    f"Path is a directory, not a file: {file_path}",
+                    file_path_str,
+                    "check_file_type",
+                    context={"original_error": str(e)},
+                    cause=e
+                ) from e
+            
+            # Log file size for performance monitoring
+            file_size = path.stat().st_size
+            logger.debug(f"File size: {file_size} bytes")
+
+            # Check format detection
+            if not self.detect_format(file_path):
+                raise UnsupportedFormatError(file_path_str)
+
+            # Read file content with comprehensive error handling
+            try:
+                json_content = path.read_text(encoding="utf-8")
+                logger.debug(f"Successfully read {len(json_content)} characters from {file_path_str}")
+            except UnicodeDecodeError as e:
+                raise FileAccessError(
+                    f"Unable to decode file '{file_path_str}' as UTF-8. "
+                    f"Please ensure the file is properly encoded. Error: {e}",
+                    file_path_str,
+                    "read_text",
+                    context={"encoding": "utf-8", "original_error": str(e)},
+                    cause=e
+                ) from e
+            except IOError as e:
+                raise FileAccessError(
+                    f"Error reading file '{file_path_str}': {e}. "
+                    f"Please check file permissions and disk space.",
+                    file_path_str,
+                    "read_file",
+                    permission_issue=("permission" in str(e).lower()),
+                    context={"original_error": str(e)},
+                    cause=e
                 ) from e
 
-            # Validate Lexical schema
-            self._validate_lexical_schema(json_data, str(file_path))
+            # Parse and validate JSON content
+            json_data = validate_json_content(json_content, file_path_str)
+            
+            # Validate Lexical JSON structure using comprehensive validator
+            validate_lexical_json(json_data, file_path_str)
 
-            # Convert Lexical JSON to DoclingDocument
-            return self._convert_lexical_to_docling(json_data, str(file_path))
+            # Convert Lexical JSON to DoclingDocument with error recovery
+            try:
+                document = self._convert_lexical_to_docling(json_data, file_path_str)
+                
+                # Log successful completion with performance metrics
+                duration = (time.time() - start_time) * 1000
+                perf_logger.log_file_processing(file_path_str, "load", duration, file_size)
+                logger.info(f"Successfully loaded Lexical JSON from {file_path_str}")
+                
+                return document
+                
+            except Exception as e:
+                raise TransformationError(
+                    f"Failed to convert Lexical JSON to DoclingDocument from '{file_path_str}': {e}. "
+                    f"The file structure may be incompatible or corrupted.",
+                    transformation_type="lexical_to_docling",
+                    recovery_suggestions=[
+                        "Verify the Lexical JSON structure is valid",
+                        "Check that all required nodes and properties are present",
+                        "Ensure node hierarchy is properly nested",
+                        "Try validating the original Lexical JSON in a Lexical editor"
+                    ],
+                    context={
+                        "file_path": file_path_str,
+                        "original_error": str(e)
+                    },
+                    cause=e
+                ) from e
 
-        except IOError as e:
-            raise IOError(f"Error reading file '{file_path}': {e}") from e
+        except (DocPivotValidationError, FileAccessError, UnsupportedFormatError, TransformationError):
+            # Re-raise our custom exceptions without wrapping
+            duration = (time.time() - start_time) * 1000
+            logger.error(f"Failed to load Lexical JSON from {file_path_str} after {duration:.2f}ms")
+            raise
+        except Exception as e:
+            # Handle unexpected errors with comprehensive context
+            duration = (time.time() - start_time) * 1000
+            context = {
+                "file_path": file_path_str,
+                "operation": "load_data",
+                "duration_ms": duration
+            }
+            log_exception_with_context(logger, e, "Lexical JSON loading", context)
+            
+            raise DocPivotValidationError(
+                f"Unexpected error loading Lexical JSON from '{file_path_str}': {e}. "
+                f"Please check the file format and try again.",
+                error_code="UNEXPECTED_LOAD_ERROR",
+                context=context,
+                cause=e
+            ) from e
 
     def detect_format(self, file_path: Union[str, Path]) -> bool:
         """Detect if this reader can handle the given file format.

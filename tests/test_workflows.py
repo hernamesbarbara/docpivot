@@ -7,7 +7,7 @@ import pytest
 from docling_core.types import DoclingDocument
 
 from docpivot.workflows import load_document, load_and_serialize, convert_document
-from docpivot.io.readers.exceptions import UnsupportedFormatError
+from docpivot.io.readers.exceptions import UnsupportedFormatError, FileAccessError, ConfigurationError
 
 
 class TestLoadDocument:
@@ -31,7 +31,7 @@ class TestLoadDocument:
         
     def test_load_file_not_found(self):
         """Test error handling when file doesn't exist."""
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(FileAccessError):
             load_document("nonexistent_file.json")
             
     def test_load_unsupported_format(self):
@@ -94,12 +94,12 @@ class TestLoadAndSerialize:
         
     def test_load_and_serialize_unsupported_format(self, sample_docling_json_path):
         """Test error handling for unsupported output format."""
-        with pytest.raises(ValueError):
+        with pytest.raises(ConfigurationError):
             load_and_serialize(sample_docling_json_path, "unsupported_format")
             
     def test_load_and_serialize_file_not_found(self):
         """Test error handling when input file doesn't exist."""
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(FileAccessError):
             load_and_serialize("nonexistent_file.json", "markdown")
 
 
@@ -178,12 +178,12 @@ class TestConvertDocument:
             
     def test_convert_document_unsupported_format(self, sample_docling_json_path):
         """Test error handling for unsupported output format."""
-        with pytest.raises(ValueError):
+        with pytest.raises(ConfigurationError):
             convert_document(sample_docling_json_path, "unsupported_format")
             
     def test_convert_document_file_not_found(self):
         """Test error handling when input file doesn't exist."""
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(FileAccessError):
             convert_document("nonexistent_file.json", "markdown")
 
 
@@ -223,10 +223,10 @@ class TestWorkflowIntegration:
     def test_error_propagation_workflow(self):
         """Test that errors propagate correctly through the workflow."""
         # Test file not found error propagation
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(FileAccessError):
             load_and_serialize("nonexistent.json", "markdown")
             
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(FileAccessError):
             convert_document("nonexistent.json", "markdown")
             
         # Test unsupported format error propagation
