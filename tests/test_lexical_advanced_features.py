@@ -128,6 +128,60 @@ class TestLinkNodes:
         assert link_node["children"][0]["type"] == "text"
         assert link_node["version"] == 1
 
+    def test_process_text_with_links_simple(self) -> None:
+        """Test processing text with a simple URL."""
+        doc = MagicMock(spec=DoclingDocument)
+        serializer = LexicalDocSerializer(doc=doc)
+
+        text = "Visit https://example.com for more info"
+        nodes = serializer._process_text_with_links(text)
+
+        assert len(nodes) == 3  # text before, link, text after
+        assert nodes[0]["type"] == "text"
+        assert nodes[0]["text"] == "Visit "
+        assert nodes[1]["type"] == "link"
+        assert nodes[1]["url"] == "https://example.com"
+        assert nodes[2]["type"] == "text"
+        assert nodes[2]["text"] == " for more info"
+
+    def test_process_text_with_links_www(self) -> None:
+        """Test processing text with www URL."""
+        doc = MagicMock(spec=DoclingDocument)
+        serializer = LexicalDocSerializer(doc=doc)
+
+        text = "Check www.example.com"
+        nodes = serializer._process_text_with_links(text)
+
+        assert len(nodes) == 2  # text before, link
+        assert nodes[1]["type"] == "link"
+        assert nodes[1]["url"] == "https://www.example.com"  # Protocol added
+
+    def test_process_text_without_links(self) -> None:
+        """Test processing text without any links."""
+        doc = MagicMock(spec=DoclingDocument)
+        serializer = LexicalDocSerializer(doc=doc)
+
+        text = "This is plain text without links"
+        nodes = serializer._process_text_with_links(text)
+
+        assert len(nodes) == 1
+        assert nodes[0]["type"] == "text"
+        assert nodes[0]["text"] == text
+
+    def test_process_text_with_multiple_links(self) -> None:
+        """Test processing text with multiple URLs."""
+        doc = MagicMock(spec=DoclingDocument)
+        serializer = LexicalDocSerializer(doc=doc)
+
+        text = "Visit https://example.com and www.test.org"
+        nodes = serializer._process_text_with_links(text)
+
+        assert len(nodes) == 4  # text, link, text, link
+        assert nodes[1]["type"] == "link"
+        assert nodes[1]["url"] == "https://example.com"
+        assert nodes[3]["type"] == "link"
+        assert nodes[3]["url"] == "https://www.test.org"
+
 
 class TestImageSerializer:
     """Test ImageSerializer for picture elements."""

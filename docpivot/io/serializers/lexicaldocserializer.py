@@ -322,11 +322,12 @@ class LexicalDocSerializer:
 
         return lexical_nodes
 
-    def _detect_text_formatting(self, text_content: str) -> List[str]:
-        """Detect text formatting from content patterns.
+    def _detect_text_formatting(self, text_content: str, text_item: Optional[TextItemType] = None) -> List[str]:
+        """Detect text formatting from content patterns and DoclingDocument attributes.
 
         Args:
             text_content: The text content to analyze
+            text_item: Optional TextItem to extract formatting metadata from
 
         Returns:
             List of format types detected (e.g., ['bold'], ['italic'])
@@ -336,15 +337,42 @@ class LexicalDocSerializer:
         if not self.params.preserve_formatting or not text_content:
             return format_types
 
-        # Simple heuristic detection for common formatting patterns
-        # In real implementation, this would use DoclingDocument's formatting info
+        # First check if the text_item has style information
+        if text_item:
+            # Check if the item has any style attributes
+            if hasattr(text_item, 'style'):
+                style = getattr(text_item, 'style', {})
+                if isinstance(style, dict):
+                    if style.get('bold') or style.get('font_weight', '').lower() in ['bold', '700']:
+                        format_types.append("bold")
+                    if style.get('italic') or style.get('font_style', '').lower() == 'italic':
+                        format_types.append("italic")
+                    if style.get('underline'):
+                        format_types.append("underline")
+
+            # Check if the item has formatting attributes directly
+            if hasattr(text_item, 'font_weight') and str(getattr(text_item, 'font_weight', '')).lower() in ['bold', '700']:
+                format_types.append("bold")
+            if hasattr(text_item, 'font_style') and str(getattr(text_item, 'font_style', '')).lower() == 'italic':
+                format_types.append("italic")
+
+        # Fallback to heuristic detection for common formatting patterns
         lower_text = text_content.lower()
 
-        # Detect emphasis patterns (basic heuristics)
-        if ("bold" in lower_text and "are" in lower_text) or text_content.isupper():
-            format_types.append("bold")
-        elif "italic" in lower_text and "emphasis" in lower_text:
-            format_types.append("italic")
+        # Detect emphasis patterns (enhanced heuristics)
+        if not format_types:  # Only use heuristics if no style info found
+            # Bold text patterns
+            if (("bold" in lower_text and ("are" in lower_text or "terms" in lower_text)) 
+                or text_content.isupper() 
+                or "important" in lower_text.lower()
+                or text_content.startswith("**") and text_content.endswith("**")):
+                format_types.append("bold")
+            
+            # Italic text patterns
+            elif (("italic" in lower_text and "emphasis" in lower_text) 
+                  or "primarily used" in lower_text
+                  or text_content.startswith("*") and text_content.endswith("*") and not text_content.startswith("**")):
+                format_types.append("italic")
 
         return format_types
 
@@ -382,6 +410,60 @@ class LexicalDocSerializer:
             "type": NODE_TYPE_TEXT,
             "version": self.params.version,
         }
+
+    def _process_text_with_links(self, text_content: str, text_item: Optional[TextItemType] = None) -> List[Dict[str, Any]]:
+        """Process text content to detect and create link nodes.
+
+        Args:
+            text_content: The text content to process
+            text_item: Optional TextItem for formatting metadata
+
+        Returns:
+            List of Lexical nodes (text nodes or link nodes)
+        """
+        import re
+
+        # URL pattern to detect links
+        url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+|www\.[^\s<>"{}|\\^`\[\]]+'
+        
+        # Find all URLs in the text
+        urls = list(re.finditer(url_pattern, text_content))
+        
+        if not urls:
+            # No links found, return a single formatted text node
+            format_types = self._detect_text_formatting(text_content, text_item)
+            return [self._create_formatted_text_node(text_content, format_types)]
+        
+        nodes = []
+        last_end = 0
+        
+        for url_match in urls:
+            # Add text before the URL as a regular text node
+            if url_match.start() > last_end:
+                before_text = text_content[last_end:url_match.start()]
+                if before_text.strip():  # Only add non-empty text
+                    format_types = self._detect_text_formatting(before_text, text_item)
+                    nodes.append(self._create_formatted_text_node(before_text, format_types))
+            
+            # Create link node
+            url = url_match.group()
+            # Ensure URL has protocol
+            if not url.startswith('http'):
+                url = 'https://' + url
+            
+            link_text = url_match.group()  # Display the original match
+            nodes.append(self._create_link_node(link_text, url))
+            
+            last_end = url_match.end()
+        
+        # Add any remaining text after the last URL
+        if last_end < len(text_content):
+            after_text = text_content[last_end:]
+            if after_text.strip():  # Only add non-empty text
+                format_types = self._detect_text_formatting(after_text, text_item)
+                nodes.append(self._create_formatted_text_node(after_text, format_types))
+        
+        return nodes
 
     def _create_link_node(self, text_content: str, url: str) -> Dict[str, Any]:
         """Create a Lexical link node.
@@ -444,8 +526,8 @@ class LexicalDocSerializer:
             # Handle missing or malformed text content
             text_content = getattr(text_item, "text", "") or ""
 
-            # Detect formatting if enabled
-            format_types = self._detect_text_formatting(text_content)
+            # Detect formatting if enabled, passing the text_item for metadata
+            format_types = self._detect_text_formatting(text_content, text_item)
 
             # Create formatted text node
             text_node = self._create_formatted_text_node(text_content, format_types)
@@ -484,14 +566,11 @@ class LexicalDocSerializer:
         # Handle missing or malformed text content
         text_content = getattr(text_item, "text", "") or ""
 
-        # Detect formatting if enabled
-        format_types = self._detect_text_formatting(text_content)
-
-        # Create formatted text node
-        text_node = self._create_formatted_text_node(text_content, format_types)
+        # Check for links in the text and create appropriate nodes
+        children = self._process_text_with_links(text_content, text_item)
 
         return {
-            "children": [text_node],
+            "children": children,
             "direction": TEXT_DIRECTION_LTR,
             "format": DEFAULT_STYLE,
             "indent": DEFAULT_INDENT,
@@ -648,10 +727,11 @@ class LexicalDocSerializer:
                             1
                         ]  # Remove number and period
 
+                    # Process text with links and formatting
+                    children = self._process_text_with_links(text_content, text_item)
+
                     list_item = {
-                        "children": [
-                            self._create_formatted_text_node(text_content, [])
-                        ],
+                        "children": children,
                         "direction": TEXT_DIRECTION_LTR,
                         "format": DEFAULT_STYLE,
                         "indent": DEFAULT_INDENT,
