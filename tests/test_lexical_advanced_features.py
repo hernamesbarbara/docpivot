@@ -3,15 +3,13 @@
 import json
 from unittest.mock import MagicMock
 
-import pytest
 from docling_core.types import DoclingDocument
-from docling_core.types.doc.document import PictureItem, TextItem, TableItem
+from docling_core.types.doc.document import PictureItem, TableItem
 
 from docpivot.io.serializers.lexicaldocserializer import (
     LexicalDocSerializer,
     LexicalParams,
     ImageSerializer,
-    ComponentSerializer,
 )
 
 
