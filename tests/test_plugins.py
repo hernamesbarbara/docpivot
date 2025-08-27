@@ -16,7 +16,7 @@ from docpivot.io.readers.basereader import BaseReader
 from docpivot.io.format_registry import FormatRegistry
 
 
-class TestReaderPlugin(BaseReader):
+class MockTestReaderPlugin(BaseReader):
     """Test reader for plugin testing."""
     
     def detect_format(self, file_path):
@@ -57,7 +57,7 @@ class TestFormatPlugin(FormatPlugin):
         return "https://example.com/test-plugin"
     
     def get_readers(self):
-        return {"test": TestReaderPlugin}
+        return {"test": MockTestReaderPlugin}
     
     def get_serializers(self):
         return {"test": TestSerializerPlugin}
@@ -665,7 +665,7 @@ class TestPluginIntegration(unittest.TestCase):
         
         # Check that reader was registered
         reader_class = self.registry.get_reader_for_format("test")
-        self.assertIs(reader_class, TestReaderPlugin)
+        self.assertIs(reader_class, MockTestReaderPlugin)
         
         # Check that serializer was registered
         serializer_class = self.registry.get_serializer_for_format("test")

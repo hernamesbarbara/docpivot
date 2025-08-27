@@ -116,12 +116,12 @@ class ExtensibilityManager:
             self._plugin_manager.register_plugin(plugin)
         elif isinstance(plugin, type) and issubclass(plugin, FormatPlugin):
             self._plugin_manager.load_plugin_from_class(plugin)
-        elif isinstance(plugin, str):
-            self._plugin_manager.load_plugin_from_module(plugin)
         elif isinstance(plugin, Path) or (
             isinstance(plugin, str) and Path(plugin).exists()
         ):
             self._plugin_manager.load_plugin_from_file(plugin)
+        elif isinstance(plugin, str):
+            self._plugin_manager.load_plugin_from_module(plugin)
         else:
             raise ValueError(f"Invalid plugin type: {type(plugin)}")
 

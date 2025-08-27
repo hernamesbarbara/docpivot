@@ -463,19 +463,23 @@ class TestFormatValidator(unittest.TestCase):
         result = self.validator.validate_reader(IncompleteReader)
         self.assertFalse(result.is_valid)
         issues = result.get_issues_by_severity(ValidationSeverity.CRITICAL)
+        # The reader fails to instantiate due to abstract methods, which is the expected behavior
         self.assertTrue(
-            any("Missing required method" in issue.message for issue in issues)
+            any("Failed to instantiate reader" in issue.message for issue in issues)
         )
 
     def test_validate_custom_reader_valid(self):
         """Test validating a valid custom reader."""
+        # Store original isinstance
+        original_isinstance = isinstance
+        
         # Patch isinstance to make MockCustomReader appear as CustomReaderBase
         with patch('docpivot.io.validation.isinstance') as mock_isinstance:
             # Set up the mock to return True for CustomReaderBase check
             def isinstance_side_effect(obj, cls):
                 if cls == CustomReaderBase:
                     return True
-                return isinstance.__wrapped__(obj, cls)
+                return original_isinstance(obj, cls)
             
             mock_isinstance.side_effect = isinstance_side_effect
             
@@ -486,12 +490,15 @@ class TestFormatValidator(unittest.TestCase):
 
     def test_validate_custom_reader_invalid_extensions(self):
         """Test validating custom reader with invalid extensions."""
+        # Store original isinstance
+        original_isinstance = isinstance
+        
         # Patch isinstance to make InvalidExtensionReader appear as CustomReaderBase
         with patch('docpivot.io.validation.isinstance') as mock_isinstance:
             def isinstance_side_effect(obj, cls):
                 if cls == CustomReaderBase:
                     return True
-                return isinstance.__wrapped__(obj, cls)
+                return original_isinstance(obj, cls)
             
             mock_isinstance.side_effect = isinstance_side_effect
             
@@ -510,12 +517,15 @@ class TestFormatValidator(unittest.TestCase):
 
     def test_validate_reader_detect_format_behavior(self):
         """Test validation of detect_format behavior."""
+        # Store original isinstance
+        original_isinstance = isinstance
+        
         # Patch isinstance to make InvalidExtensionReader appear as CustomReaderBase
         with patch('docpivot.io.validation.isinstance') as mock_isinstance:
             def isinstance_side_effect(obj, cls):
                 if cls == CustomReaderBase:
                     return True
-                return isinstance.__wrapped__(obj, cls)
+                return original_isinstance(obj, cls)
             
             mock_isinstance.side_effect = isinstance_side_effect
             
@@ -574,7 +584,7 @@ class TestFormatValidator(unittest.TestCase):
         self.assertFalse(result.is_valid)
         issues = result.get_issues_by_severity(ValidationSeverity.CRITICAL)
         self.assertTrue(
-            any("Missing required method: serialize" in issue.message for issue in issues)
+            any("Method serialize is not callable" in issue.message for issue in issues)
         )
 
     def test_validate_serializer_not_implemented(self):

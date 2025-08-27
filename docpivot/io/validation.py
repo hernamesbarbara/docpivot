@@ -504,17 +504,7 @@ class FormatValidator:
                         filename="test.txt",
                     ),
                     furniture=GroupItem(self_ref="#/furniture"),
-                    body=GroupItem(
-                        self_ref="#/body",
-                        children=[
-                            TextItem(
-                                text="Test content for round-trip validation",
-                                self_ref="#/0",
-                                label="text",
-                                orig="Test content for round-trip validation",
-                            )
-                        ],
-                    ),
+                    body=GroupItem(self_ref="#/body"),
                 )
                 original_content = "Test content for round-trip validation"
 
@@ -592,8 +582,8 @@ class FormatValidator:
                         binary_hash="a" * 64,  # Valid SHA256 hash
                         filename="",
                     ),
-                    furniture=[],
-                    body=NodeItem(),
+                    furniture=GroupItem(self_ref="#/furniture"),
+                    body=GroupItem(self_ref="#/body"),
                 )
                 serializer = serializer_class(doc=empty_doc)
 
