@@ -289,3 +289,7 @@ mcp.log
 semantic.db
 output.log
 .claude/
+
+# DocPivot output files (temporary test/example outputs)
+output_*.md
+output_*.json
