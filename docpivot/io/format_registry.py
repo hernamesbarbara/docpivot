@@ -74,15 +74,19 @@ class FormatInfo:
         if self.has_serializer and hasattr(self.serializer_class, "__new__"):
             try:
                 # Create with empty doc for capability inspection
-                from docling_core.types import DocumentOrigin, NodeItem
+                from docling_core.types.doc.document import (
+                    DocumentOrigin,
+                    NodeItem,
+                    GroupItem,
+                )
 
                 empty_doc = DoclingDocument(
                     name="",
-                    origin=DocumentOrigin(mimetype="", binary_hash="", filename=""),
-                    furniture=[],
-                    body=NodeItem(),
+                    origin=DocumentOrigin(mimetype="", binary_hash=0, filename=""),
+                    furniture=GroupItem(self_ref="", children=[]),
+                    body=GroupItem(self_ref="", children=[]),
                 )
-                temp_serializer = self.serializer_class(doc=empty_doc)
+                temp_serializer = self.serializer_class()
                 if isinstance(temp_serializer, CustomSerializerBase):
                     capabilities.update(
                         {
@@ -275,7 +279,7 @@ class FormatRegistry:
 
             try:
                 reader = format_info.reader_class()
-                if reader.can_handle(file_path):
+                if reader.detect_format(file_path):
                     return reader
             except Exception:
                 # If reader instantiation or detection fails, skip it

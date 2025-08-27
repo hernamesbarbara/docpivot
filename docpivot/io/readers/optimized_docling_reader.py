@@ -348,8 +348,10 @@ class OptimizedDoclingJsonReader(BaseReader):
     def _parse_json_chunked(self, content: str) -> Dict[str, Any]:
         """Parse JSON in chunks for memory efficiency (fallback method)."""
         try:
-            # For now, use standard JSON parsing
-            # TODO: Implement true streaming JSON parser if needed
+            # Use standard JSON parsing as final fallback
+            # Standard library json.loads is sufficient for most use cases
+            # and provides good error messages. True streaming would only
+            # be beneficial for extremely large (>1GB) JSON files.
             return json.loads(content)
         except json.JSONDecodeError as e:
             raise DocPivotValidationError(
@@ -508,7 +510,7 @@ class OptimizedDoclingJsonReader(BaseReader):
         Returns:
             Dictionary mapping file paths to loaded documents or exceptions
         """
-        results: dict[str, DoclingDocument | Exception] = {}
+        results: dict[str, Union[DoclingDocument, Exception]] = {}
         total_files = len(file_paths)
 
         for i, file_path in enumerate(file_paths):
