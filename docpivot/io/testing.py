@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Type
 
 from docling_core.transforms.serializer.common import BaseDocSerializer
 from docling_core.types import DoclingDocument
-from docling_core.types.doc import DocumentOrigin, NodeItem, TextItem
+from docling_core.types.doc import DocumentOrigin, NodeItem, TextItem, GroupItem
 
 from .readers.basereader import BaseReader
 from .readers.custom_reader_base import CustomReaderBase
@@ -324,32 +324,17 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
         Returns:
             DoclingDocument: Simple test document
         """
-        from docling_core.types.doc import RefItem
-        
-        ref_item = RefItem(cref="#/main-text/0", **{"$ref": "#/main-text/0"})
-        
-        return DoclingDocument(
+        doc = DoclingDocument(
             name="test_document",
             origin=DocumentOrigin(
                 mimetype="text/plain",
                 binary_hash="a" * 64,  # Valid SHA256 hash
                 filename="test.txt",
             ),
-            furniture=[],
-            body=NodeItem(
-                self_ref=ref_item,
-                label="root",
-                orig="#/main-text/0",
-                children=[
-                    TextItem(
-                        text="This is a simple test document.",
-                        self_ref=ref_item,
-                        label="text",
-                        orig="#/main-text/0"
-                    )
-                ]
-            ),
+            body=GroupItem(self_ref="#/body"),
         )
+        doc.add_text(label="text", text="Test document content")
+        return doc
 
     def _create_structured_document(self) -> DoclingDocument:
         """Create a structured test document.
@@ -357,68 +342,23 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
         Returns:
             DoclingDocument: Structured test document
         """
-        from docling_core.types.doc import RefItem
-        
-        ref_item = RefItem(cref="#/main-text/0", **{"$ref": "#/main-text/0"})
-        ref_item_s1 = RefItem(cref="#/main-text/1", **{"$ref": "#/main-text/1"})
-        ref_item_s11 = RefItem(cref="#/main-text/1/1", **{"$ref": "#/main-text/1/1"})
-        ref_item_s2 = RefItem(cref="#/main-text/2", **{"$ref": "#/main-text/2"})
-        
-        return DoclingDocument(
+        doc = DoclingDocument(
             name="structured_document",
             origin=DocumentOrigin(
                 mimetype="text/plain",
                 binary_hash="b" * 64,  # Valid SHA256 hash
                 filename="structured.txt",
             ),
-            furniture=[],
-            body=NodeItem(
-                self_ref=ref_item,
-                label="root",
-                orig="#/main-text/0",
-                children=[
-                    NodeItem(
-                        self_ref=ref_item_s1,
-                        label="Section 1",
-                        orig="#/main-text/1",
-                        children=[
-                            TextItem(
-                                text="Content of section 1",
-                                self_ref=ref_item_s1,
-                                label="text",
-                                orig="#/main-text/1"
-                            ),
-                            NodeItem(
-                                self_ref=ref_item_s11,
-                                label="Subsection 1.1",
-                                orig="#/main-text/1/1",
-                                children=[
-                                    TextItem(
-                                        text="Content of subsection 1.1",
-                                        self_ref=ref_item_s11,
-                                        label="text",
-                                        orig="#/main-text/1/1"
-                                    )
-                                ],
-                            ),
-                        ],
-                    ),
-                    NodeItem(
-                        self_ref=ref_item_s2,
-                        label="Section 2",
-                        orig="#/main-text/2",
-                        children=[
-                            TextItem(
-                                text="Content of section 2",
-                                self_ref=ref_item_s2,
-                                label="text",
-                                orig="#/main-text/2"
-                            )
-                        ],
-                    ),
-                ]
-            ),
+            body=GroupItem(self_ref="#/body"),
         )
+        # Create a structured document with nested groups
+        section1 = doc.add_group(name="Section 1")
+        doc.add_text(label="text", text="Content of section 1", parent=section1)
+        
+        subsection = doc.add_group(name="Subsection 1.1", parent=section1)
+        doc.add_text(label="text", text="Content of subsection 1.1", parent=subsection)
+        
+        return doc
 
     def _create_empty_document(self) -> DoclingDocument:
         """Create an empty test document.
@@ -426,10 +366,6 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
         Returns:
             DoclingDocument: Empty test document
         """
-        from docling_core.types.doc import RefItem
-        
-        ref_item = RefItem(cref="#/main-text/0", **{"$ref": "#/main-text/0"})
-        
         return DoclingDocument(
             name="empty_document",
             origin=DocumentOrigin(
@@ -437,12 +373,7 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
                 binary_hash="c" * 64,  # Valid SHA256 hash
                 filename="empty.txt",
             ),
-            furniture=[],
-            body=NodeItem(
-                self_ref=ref_item,
-                label="root",
-                orig="#/main-text/0"
-            ),
+            body=GroupItem(self_ref="#/body"),
         )
 
 
@@ -636,48 +567,28 @@ class FormatTestSuite:
 
     def _create_simple_document(self) -> DoclingDocument:
         """Create a simple test document."""
-        from docling_core.types.doc import RefItem
-        
-        ref_item = RefItem(cref="#/main-text/0", **{"$ref": "#/main-text/0"})
-        
-        return DoclingDocument(
+        doc = DoclingDocument(
             name="test",
             origin=DocumentOrigin(
                 mimetype="text/plain",
                 binary_hash="d" * 64,  # Valid SHA256 hash
-                filename="",
+                filename="test.txt",
             ),
-            furniture=[],
-            body=NodeItem(
-                self_ref=ref_item,
-                label="root",
-                orig="#/main-text/0",
-                children=[
-                    TextItem(
-                        text="Test content",
-                        self_ref=ref_item,
-                        label="text",
-                        orig="#/main-text/0"
-                    )
-                ]
-            ),
+            body=GroupItem(self_ref="#/body"),
         )
+        doc.add_text(label="text", text="Test content")
+        return doc
 
     def _create_empty_document(self) -> DoclingDocument:
         """Create an empty test document."""
-        from docling_core.types.doc import RefItem
-        
-        ref_item = RefItem(cref="#/main-text/0", **{"$ref": "#/main-text/0"})
-        
         return DoclingDocument(
             name="empty",
-            origin=DocumentOrigin(mimetype="", binary_hash="", filename=""),
-            furniture=[],
-            body=NodeItem(
-                self_ref=ref_item,
-                label="root",
-                orig="#/main-text/0"
+            origin=DocumentOrigin(
+                mimetype="text/plain", 
+                binary_hash="e" * 64,  # Valid SHA256 hash
+                filename="empty.txt"
             ),
+            body=GroupItem(self_ref="#/body"),
         )
 
     def generate_report(self, results: Dict[str, Any]) -> str:

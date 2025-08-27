@@ -15,7 +15,7 @@ from docpivot.io.readers.custom_reader_base import CustomReaderBase
 from docpivot.io.serializers.custom_serializer_base import CustomSerializerBase
 
 
-class TestReader(BaseReader):
+class MockTestReader(BaseReader):
     """Test reader implementation."""
     
     def detect_format(self, file_path) -> bool:
@@ -25,7 +25,7 @@ class TestReader(BaseReader):
         return DoclingDocument(name="test")
 
 
-class TestCustomReader(CustomReaderBase):
+class MockTestCustomReader(CustomReaderBase):
     """Test custom reader implementation."""
     
     @property
@@ -171,9 +171,9 @@ class TestFormatInfo(unittest.TestCase):
         
     def test_initialization_with_reader(self):
         """Test FormatInfo initialization with reader."""
-        info = FormatInfo("test", reader_class=TestReader)
+        info = FormatInfo("test", reader_class=MockTestReader)
         self.assertEqual(info.format_name, "test")
-        self.assertEqual(info.reader_class, TestReader)
+        self.assertEqual(info.reader_class, MockTestReader)
         self.assertIsNone(info.serializer_class)
         
     def test_initialization_with_serializer(self):
@@ -185,9 +185,9 @@ class TestFormatInfo(unittest.TestCase):
         
     def test_initialization_with_both(self):
         """Test FormatInfo initialization with both reader and serializer."""
-        info = FormatInfo("test", reader_class=TestReader, serializer_class=TestSerializer)
+        info = FormatInfo("test", reader_class=MockTestReader, serializer_class=TestSerializer)
         self.assertEqual(info.format_name, "test")
-        self.assertEqual(info.reader_class, TestReader)
+        self.assertEqual(info.reader_class, MockTestReader)
         self.assertEqual(info.serializer_class, TestSerializer)
         
     def test_has_reader_property(self):
@@ -195,7 +195,7 @@ class TestFormatInfo(unittest.TestCase):
         info = FormatInfo("test")
         self.assertFalse(info.has_reader)
         
-        info.reader_class = TestReader
+        info.reader_class = MockTestReader
         self.assertTrue(info.has_reader)
         
     def test_has_serializer_property(self):
@@ -217,7 +217,7 @@ class TestFormatInfo(unittest.TestCase):
         
     def test_get_capabilities_with_custom_reader(self):
         """Test get_capabilities with custom reader."""
-        info = FormatInfo("test", reader_class=TestCustomReader)
+        info = FormatInfo("test", reader_class=MockTestCustomReader)
         capabilities = info.get_capabilities()
         
         self.assertEqual(capabilities["format_name"], "test")
@@ -268,7 +268,7 @@ class TestFormatInfo(unittest.TestCase):
         
     def test_get_capabilities_with_non_custom_reader(self):
         """Test get_capabilities with non-custom reader."""
-        info = FormatInfo("test", reader_class=TestReader)
+        info = FormatInfo("test", reader_class=MockTestReader)
         capabilities = info.get_capabilities()
         
         # Should handle non-CustomReaderBase gracefully
@@ -309,23 +309,23 @@ class TestFormatRegistry(unittest.TestCase):
         
     def test_register_reader_valid(self):
         """Test registering a valid reader."""
-        self.registry.register_reader("test", TestReader)
+        self.registry.register_reader("test", MockTestReader)
         
         format_info = self.registry._formats.get("test")
         self.assertIsNotNone(format_info)
-        self.assertEqual(format_info.reader_class, TestReader)
+        self.assertEqual(format_info.reader_class, MockTestReader)
         self.assertIsNone(format_info.serializer_class)
         
     def test_register_reader_empty_name(self):
         """Test registering reader with empty name."""
         with self.assertRaises(ValueError) as ctx:
-            self.registry.register_reader("", TestReader)
+            self.registry.register_reader("", MockTestReader)
         self.assertIn("Format name cannot be empty", str(ctx.exception))
         
     def test_register_reader_whitespace_name(self):
         """Test registering reader with whitespace name."""
         with self.assertRaises(ValueError) as ctx:
-            self.registry.register_reader("   ", TestReader)
+            self.registry.register_reader("   ", MockTestReader)
         self.assertIn("Format name cannot be empty", str(ctx.exception))
         
     def test_register_reader_invalid_class(self):
@@ -340,11 +340,11 @@ class TestFormatRegistry(unittest.TestCase):
         self.registry.register_serializer("test", TestSerializer)
         
         # Then register a reader for same format
-        self.registry.register_reader("test", TestReader)
+        self.registry.register_reader("test", MockTestReader)
         
         format_info = self.registry._formats.get("test")
         self.assertIsNotNone(format_info)
-        self.assertEqual(format_info.reader_class, TestReader)
+        self.assertEqual(format_info.reader_class, MockTestReader)
         self.assertEqual(format_info.serializer_class, TestSerializer)
         
     def test_register_serializer_valid(self):
@@ -377,32 +377,32 @@ class TestFormatRegistry(unittest.TestCase):
     def test_register_serializer_update_existing(self):
         """Test updating existing format with serializer."""
         # First register a reader
-        self.registry.register_reader("test", TestReader)
+        self.registry.register_reader("test", MockTestReader)
         
         # Then register a serializer for same format
         self.registry.register_serializer("test", TestSerializer)
         
         format_info = self.registry._formats.get("test")
         self.assertIsNotNone(format_info)
-        self.assertEqual(format_info.reader_class, TestReader)
+        self.assertEqual(format_info.reader_class, MockTestReader)
         self.assertEqual(format_info.serializer_class, TestSerializer)
         
     def test_register_format_with_both(self):
         """Test registering format with both reader and serializer."""
-        self.registry.register_format("test", TestReader, TestSerializer)
+        self.registry.register_format("test", MockTestReader, TestSerializer)
         
         format_info = self.registry._formats.get("test")
         self.assertIsNotNone(format_info)
-        self.assertEqual(format_info.reader_class, TestReader)
+        self.assertEqual(format_info.reader_class, MockTestReader)
         self.assertEqual(format_info.serializer_class, TestSerializer)
         
     def test_register_format_with_reader_only(self):
         """Test registering format with reader only."""
-        self.registry.register_format("test", reader_class=TestReader)
+        self.registry.register_format("test", reader_class=MockTestReader)
         
         format_info = self.registry._formats.get("test")
         self.assertIsNotNone(format_info)
-        self.assertEqual(format_info.reader_class, TestReader)
+        self.assertEqual(format_info.reader_class, MockTestReader)
         self.assertIsNone(format_info.serializer_class)
         
     def test_register_format_with_serializer_only(self):
@@ -422,17 +422,17 @@ class TestFormatRegistry(unittest.TestCase):
         
     def test_get_reader_for_format(self):
         """Test getting reader for a registered format."""
-        self.registry.register_reader("test", TestReader)
+        self.registry.register_reader("test", MockTestReader)
         
         reader_class = self.registry.get_reader_for_format("test")
-        self.assertEqual(reader_class, TestReader)
+        self.assertEqual(reader_class, MockTestReader)
         
     def test_get_reader_for_format_case_insensitive(self):
         """Test getting reader is case-insensitive."""
-        self.registry.register_reader("Test", TestReader)
+        self.registry.register_reader("Test", MockTestReader)
         
         reader_class = self.registry.get_reader_for_format("TEST")
-        self.assertEqual(reader_class, TestReader)
+        self.assertEqual(reader_class, MockTestReader)
         
     def test_get_reader_for_format_nonexistent(self):
         """Test getting reader for nonexistent format."""
@@ -465,10 +465,10 @@ class TestFormatRegistry(unittest.TestCase):
             tmp_path = tmp.name
             
         try:
-            self.registry.register_reader("test", TestReader)
+            self.registry.register_reader("test", MockTestReader)
             
             reader = self.registry.get_reader_for_file(tmp_path)
-            self.assertIsInstance(reader, TestReader)
+            self.assertIsInstance(reader, MockTestReader)
         finally:
             Path(tmp_path).unlink()
             
@@ -483,7 +483,7 @@ class TestFormatRegistry(unittest.TestCase):
             tmp_path = tmp.name
             
         try:
-            self.registry.register_reader("test", TestReader)
+            self.registry.register_reader("test", MockTestReader)
             
             reader = self.registry.get_reader_for_file(tmp_path)
             self.assertIsNone(reader)
@@ -499,17 +499,17 @@ class TestFormatRegistry(unittest.TestCase):
             # Register broken reader first (should be skipped)
             self.registry.register_reader("broken", BrokenReader)
             # Register working reader second
-            self.registry.register_reader("test", TestReader)
+            self.registry.register_reader("test", MockTestReader)
             
             reader = self.registry.get_reader_for_file(tmp_path)
-            self.assertIsInstance(reader, TestReader)
+            self.assertIsInstance(reader, MockTestReader)
         finally:
             Path(tmp_path).unlink()
             
     def test_discover_formats(self):
         """Test discovering all formats and capabilities."""
-        self.registry.register_format("test1", TestCustomReader, TestCustomSerializer)
-        self.registry.register_reader("test2", TestReader)
+        self.registry.register_format("test1", MockTestCustomReader, TestCustomSerializer)
+        self.registry.register_reader("test2", MockTestReader)
         self.registry.register_serializer("test3", TestSerializer)
         
         formats = self.registry.discover_formats()
@@ -528,9 +528,9 @@ class TestFormatRegistry(unittest.TestCase):
         
     def test_list_formats(self):
         """Test listing all format names."""
-        self.registry.register_reader("format1", TestReader)
+        self.registry.register_reader("format1", MockTestReader)
         self.registry.register_serializer("format2", TestSerializer)
-        self.registry.register_format("format3", TestReader, TestSerializer)
+        self.registry.register_format("format3", MockTestReader, TestSerializer)
         
         formats = self.registry.list_formats()
         
@@ -541,9 +541,9 @@ class TestFormatRegistry(unittest.TestCase):
         
     def test_list_readable_formats(self):
         """Test listing readable formats."""
-        self.registry.register_reader("readable1", TestReader)
+        self.registry.register_reader("readable1", MockTestReader)
         self.registry.register_serializer("writable_only", TestSerializer)
-        self.registry.register_format("both", TestReader, TestSerializer)
+        self.registry.register_format("both", MockTestReader, TestSerializer)
         
         readable = self.registry.list_readable_formats()
         
@@ -553,9 +553,9 @@ class TestFormatRegistry(unittest.TestCase):
         
     def test_list_writable_formats(self):
         """Test listing writable formats."""
-        self.registry.register_reader("readable_only", TestReader)
+        self.registry.register_reader("readable_only", MockTestReader)
         self.registry.register_serializer("writable1", TestSerializer)
-        self.registry.register_format("both", TestReader, TestSerializer)
+        self.registry.register_format("both", MockTestReader, TestSerializer)
         
         writable = self.registry.list_writable_formats()
         
@@ -565,7 +565,7 @@ class TestFormatRegistry(unittest.TestCase):
         
     def test_is_format_supported(self):
         """Test checking if format is supported."""
-        self.registry.register_reader("test", TestReader)
+        self.registry.register_reader("test", MockTestReader)
         
         self.assertTrue(self.registry.is_format_supported("test"))
         self.assertTrue(self.registry.is_format_supported("TEST"))  # Case-insensitive
@@ -573,7 +573,7 @@ class TestFormatRegistry(unittest.TestCase):
         
     def test_can_read_format(self):
         """Test checking if format can be read."""
-        self.registry.register_reader("readable", TestReader)
+        self.registry.register_reader("readable", MockTestReader)
         self.registry.register_serializer("writable", TestSerializer)
         
         self.assertTrue(self.registry.can_read_format("readable"))
@@ -582,7 +582,7 @@ class TestFormatRegistry(unittest.TestCase):
         
     def test_can_write_format(self):
         """Test checking if format can be written."""
-        self.registry.register_reader("readable", TestReader)
+        self.registry.register_reader("readable", MockTestReader)
         self.registry.register_serializer("writable", TestSerializer)
         
         self.assertFalse(self.registry.can_write_format("readable"))
@@ -591,8 +591,8 @@ class TestFormatRegistry(unittest.TestCase):
         
     def test_get_supported_extensions(self):
         """Test getting all supported extensions."""
-        self.registry.register_reader("custom", TestCustomReader)
-        self.registry.register_reader("test", TestReader)  # No custom extensions
+        self.registry.register_reader("custom", MockTestCustomReader)
+        self.registry.register_reader("test", MockTestReader)  # No custom extensions
         
         extensions = self.registry.get_supported_extensions()
         
@@ -604,7 +604,7 @@ class TestFormatRegistry(unittest.TestCase):
         
     def test_get_supported_extensions_with_broken_reader(self):
         """Test getting extensions with reader that fails."""
-        self.registry.register_reader("custom", TestCustomReader)
+        self.registry.register_reader("custom", MockTestCustomReader)
         self.registry.register_reader("broken", BrokenCustomReader)
         
         # Should skip broken reader
@@ -616,7 +616,7 @@ class TestFormatRegistry(unittest.TestCase):
         
     def test_get_supported_extensions_with_non_custom_reader(self):
         """Test getting extensions with non-custom readers."""
-        self.registry.register_reader("test", TestReader)
+        self.registry.register_reader("test", MockTestReader)
         
         extensions = self.registry.get_supported_extensions()
         
@@ -625,7 +625,7 @@ class TestFormatRegistry(unittest.TestCase):
         
     def test_unregister_format_existing(self):
         """Test unregistering an existing format."""
-        self.registry.register_reader("test", TestReader)
+        self.registry.register_reader("test", MockTestReader)
         
         result = self.registry.unregister_format("test")
         
@@ -640,7 +640,7 @@ class TestFormatRegistry(unittest.TestCase):
         
     def test_clear_registry(self):
         """Test clearing the registry."""
-        self.registry.register_reader("test1", TestReader)
+        self.registry.register_reader("test1", MockTestReader)
         self.registry.register_serializer("test2", TestSerializer)
         
         self.registry.clear_registry()
@@ -651,13 +651,13 @@ class TestFormatRegistry(unittest.TestCase):
         
     def test_get_format_info_existing(self):
         """Test getting format info for existing format."""
-        self.registry.register_format("test", TestReader, TestSerializer)
+        self.registry.register_format("test", MockTestReader, TestSerializer)
         
         info = self.registry.get_format_info("test")
         
         self.assertIsNotNone(info)
         self.assertEqual(info.format_name, "test")
-        self.assertEqual(info.reader_class, TestReader)
+        self.assertEqual(info.reader_class, MockTestReader)
         self.assertEqual(info.serializer_class, TestSerializer)
         
     def test_get_format_info_nonexistent(self):
@@ -680,7 +680,7 @@ class TestFormatRegistry(unittest.TestCase):
         self.assertIsInstance(registry._formats, dict)
         
         # Registry should be able to register new formats
-        registry.register_reader("test", TestReader)
+        registry.register_reader("test", MockTestReader)
         self.assertTrue(registry.is_format_supported("test"))
                 
     def test_register_builtin_formats_import_error_handling(self):

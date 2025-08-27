@@ -21,7 +21,7 @@ from docpivot.io.readers.basereader import BaseReader
 from docpivot.io.plugins import FormatPlugin, PluginLoadError
 
 
-class TestReader(BaseReader):
+class MockTestReader(BaseReader):
     """Test reader for extensibility testing."""
     
     def detect_format(self, file_path):
@@ -55,7 +55,7 @@ class TestPlugin(FormatPlugin):
         return "1.0.0"
     
     def get_readers(self):
-        return {"test": TestReader}
+        return {"test": MockTestReader}
     
     def get_serializers(self):
         return {"test": TestSerializer}
@@ -82,14 +82,14 @@ class TestExtensibilityManager(unittest.TestCase):
             mock_result.is_valid = True
             mock_validate.return_value = mock_result
             
-            self.manager.register_reader("test", TestReader, validate=True)
+            self.manager.register_reader("test", MockTestReader, validate=True)
             
             # Verify reader registration was called
-            mock_validate.assert_called_once_with(TestReader)
+            mock_validate.assert_called_once_with(MockTestReader)
     
     def test_register_reader_without_validation(self):
         """Test registering a reader without validation."""
-        self.manager.register_reader("test2", TestReader, validate=False)
+        self.manager.register_reader("test2", MockTestReader, validate=False)
         
         # Verify reader was registered
         formats = self.manager.discover_formats()
@@ -158,15 +158,15 @@ class TestExtensibilityManager(unittest.TestCase):
                 mock_val_reader.return_value = mock_result
                 mock_val_serializer.return_value = mock_result
                 
-                self.manager.register_format("test", TestReader, TestSerializer, validate=True)
+                self.manager.register_format("test", MockTestReader, TestSerializer, validate=True)
                 
                 # Verify both validations were called
-                mock_val_reader.assert_called_once_with(TestReader)
+                mock_val_reader.assert_called_once_with(MockTestReader)
                 mock_val_serializer.assert_called_once_with(TestSerializer)
     
     def test_register_format_with_reader_only(self):
         """Test registering a format with only a reader."""
-        self.manager.register_format("test3", reader_class=TestReader, validate=False)
+        self.manager.register_format("test3", reader_class=MockTestReader, validate=False)
         
         # Verify reader was registered
         formats = self.manager.discover_formats()
@@ -385,7 +385,7 @@ class TestExtensibilityManager(unittest.TestCase):
             mock_result.tested_features = ["feature1", "feature2"]
             mock_validate.return_value = mock_result
             
-            result = self.manager.validate_reader(TestReader)
+            result = self.manager.validate_reader(MockTestReader)
             
             self.assertEqual(result["is_valid"], True)
             self.assertEqual(result["issues"], [])
@@ -411,7 +411,7 @@ class TestExtensibilityManager(unittest.TestCase):
         with patch.object(self.manager._validator, 'validate_format_pair') as mock_validate:
             mock_validate.return_value = {"result": "success"}
             
-            result = self.manager.validate_format_pair(TestReader, TestSerializer)
+            result = self.manager.validate_format_pair(MockTestReader, TestSerializer)
             
             self.assertEqual(result, {"result": "success"})
     
@@ -484,10 +484,10 @@ class TestGlobalFunctions(unittest.TestCase):
             mock_manager = Mock()
             mock_get.return_value = mock_manager
             
-            register_format("test", TestReader, TestSerializer, validate=False)
+            register_format("test", MockTestReader, TestSerializer, validate=False)
             
             mock_manager.register_format.assert_called_once_with(
-                "test", TestReader, TestSerializer, False
+                "test", MockTestReader, TestSerializer, False
             )
     
     def test_load_plugin_global(self):
@@ -534,10 +534,10 @@ class TestGlobalFunctions(unittest.TestCase):
             mock_manager.validate_reader.return_value = {"valid": True}
             mock_get.return_value = mock_manager
             
-            result = validate_implementation(reader_class=TestReader)
+            result = validate_implementation(reader_class=MockTestReader)
             
             self.assertEqual(result, {"reader": {"valid": True}})
-            mock_manager.validate_reader.assert_called_once_with(TestReader)
+            mock_manager.validate_reader.assert_called_once_with(MockTestReader)
     
     def test_validate_implementation_serializer_only(self):
         """Test global validate_implementation with serializer only."""
@@ -560,16 +560,16 @@ class TestGlobalFunctions(unittest.TestCase):
             mock_manager.validate_format_pair.return_value = {"compatible": True}
             mock_get.return_value = mock_manager
             
-            result = validate_implementation(reader_class=TestReader, serializer_class=TestSerializer)
+            result = validate_implementation(reader_class=MockTestReader, serializer_class=TestSerializer)
             
             self.assertEqual(result, {
                 "reader": {"valid": True},
                 "serializer": {"valid": True},
                 "compatibility": {"compatible": True}
             })
-            mock_manager.validate_reader.assert_called_once_with(TestReader)
+            mock_manager.validate_reader.assert_called_once_with(MockTestReader)
             mock_manager.validate_serializer.assert_called_once_with(TestSerializer)
-            mock_manager.validate_format_pair.assert_called_once_with(TestReader, TestSerializer)
+            mock_manager.validate_format_pair.assert_called_once_with(MockTestReader, TestSerializer)
     
     def test_validate_implementation_empty(self):
         """Test global validate_implementation with no arguments."""
