@@ -15,10 +15,14 @@ from .exceptions import (
     ValidationError as DocPivotValidationError,
     SchemaValidationError,
     FileAccessError,
-    UnsupportedFormatError
+    UnsupportedFormatError,
 )
 from docpivot.validation import validate_docling_document, validate_json_content
-from docpivot.logging_config import get_logger, PerformanceLogger, log_exception_with_context
+from docpivot.logging_config import (
+    get_logger,
+    PerformanceLogger,
+    log_exception_with_context,
+)
 
 logger = get_logger(__name__)
 perf_logger = PerformanceLogger(logger)
@@ -67,17 +71,17 @@ class DoclingJsonReader(BaseReader):
                     file_path_str,
                     "check_existence",
                     context={"original_error": str(e)},
-                    cause=e
+                    cause=e,
                 ) from e
             except IsADirectoryError as e:
                 raise FileAccessError(
                     f"Path is a directory, not a file: {file_path_str}",
                     file_path_str,
-                    "check_file_type", 
+                    "check_file_type",
                     context={"original_error": str(e)},
-                    cause=e
+                    cause=e,
                 ) from e
-            
+
             # Log file size for performance monitoring
             file_size = path.stat().st_size
             logger.debug(f"File size: {file_size} bytes")
@@ -89,7 +93,9 @@ class DoclingJsonReader(BaseReader):
             # Read file content with error handling
             try:
                 json_content = path.read_text(encoding="utf-8")
-                logger.debug(f"Successfully read {len(json_content)} characters from {file_path_str}")
+                logger.debug(
+                    f"Successfully read {len(json_content)} characters from {file_path_str}"
+                )
             except UnicodeDecodeError as e:
                 raise FileAccessError(
                     f"Unable to decode file '{file_path_str}' as UTF-8. "
@@ -97,7 +103,7 @@ class DoclingJsonReader(BaseReader):
                     file_path_str,
                     "read_text",
                     context={"encoding": "utf-8", "original_error": str(e)},
-                    cause=e
+                    cause=e,
                 ) from e
             except IOError as e:
                 raise FileAccessError(
@@ -107,51 +113,62 @@ class DoclingJsonReader(BaseReader):
                     "read_file",
                     permission_issue=("permission" in str(e).lower()),
                     context={"original_error": str(e)},
-                    cause=e
+                    cause=e,
                 ) from e
 
             # Parse and validate JSON content
             json_data = validate_json_content(json_content, file_path_str)
-            
+
             # Validate DoclingDocument structure using comprehensive validator
             validate_docling_document(json_data, file_path_str)
 
             # Create DoclingDocument from validated JSON data
             try:
                 document = DoclingDocument.model_validate(json_data)
-                
+
                 # Log successful completion with performance metrics
                 duration = (time.time() - start_time) * 1000
-                perf_logger.log_file_processing(file_path_str, "load", duration, file_size)
+                perf_logger.log_file_processing(
+                    file_path_str, "load", duration, file_size
+                )
                 logger.info(f"Successfully loaded DoclingDocument from {file_path_str}")
-                
+
                 return document
-                
+
             except ValidationError as e:
                 # Convert Pydantic validation error to our custom error
                 error_details = []
                 for error in e.errors():
                     field_path = " -> ".join(str(loc) for loc in error["loc"])
                     error_details.append(f"{field_path}: {error['msg']}")
-                
+
                 raise SchemaValidationError(
-                    f"DoclingDocument validation failed for '{file_path}':\n" + 
-                    "\n".join(f"  - {detail}" for detail in error_details) +
-                    "\n\nPlease check the document structure and required fields.",
+                    f"DoclingDocument validation failed for '{file_path}':\n"
+                    + "\n".join(f"  - {detail}" for detail in error_details)
+                    + "\n\nPlease check the document structure and required fields.",
                     schema_name="DoclingDocument",
                     context={
                         "file_path": file_path,
                         "validation_errors": error_details,
-                        "original_error": str(e)
+                        "original_error": str(e),
                     },
-                    cause=e
+                    cause=e,
                 ) from e
 
-        except (DocPivotValidationError, FileAccessError, SchemaValidationError, UnsupportedFormatError):
+        except (
+            DocPivotValidationError,
+            FileAccessError,
+            SchemaValidationError,
+            UnsupportedFormatError,
+        ):
             # Re-raise our custom exceptions without wrapping
             duration = (time.time() - start_time) * 1000
-            perf_logger.log_operation_time("load_data_error", duration, {"file_path": file_path})
-            logger.error(f"Failed to load DoclingDocument from {file_path} after {duration:.2f}ms")
+            perf_logger.log_operation_time(
+                "load_data_error", duration, {"file_path": file_path}
+            )
+            logger.error(
+                f"Failed to load DoclingDocument from {file_path} after {duration:.2f}ms"
+            )
             raise
         except Exception as e:
             # Handle unexpected errors with comprehensive context
@@ -159,16 +176,16 @@ class DoclingJsonReader(BaseReader):
             context = {
                 "file_path": file_path,
                 "operation": "load_data",
-                "duration_ms": duration
+                "duration_ms": duration,
             }
             log_exception_with_context(logger, e, "DoclingDocument loading", context)
-            
+
             raise DocPivotValidationError(
                 f"Unexpected error loading DoclingDocument from '{file_path}': {e}. "
                 f"Please check the file format and try again.",
                 error_code="UNEXPECTED_LOAD_ERROR",
                 context=context,
-                cause=e
+                cause=e,
             ) from e
 
     def detect_format(self, file_path: Union[str, Path]) -> bool:
@@ -184,7 +201,7 @@ class DoclingJsonReader(BaseReader):
             bool: True if this reader can handle the file format, False otherwise
         """
         logger.debug(f"Detecting format for {file_path}")
-        
+
         try:
             path = Path(file_path)
 
@@ -207,11 +224,13 @@ class DoclingJsonReader(BaseReader):
             # For generic .json files, check content structure
             if suffix == ".json":
                 result = self._check_docling_json_content(path)
-                logger.debug(f"Content-based format detection for {file_path}: {result}")
+                logger.debug(
+                    f"Content-based format detection for {file_path}: {result}"
+                )
                 return result
 
             return False
-            
+
         except Exception as e:
             # Log error but don't raise - format detection should be non-destructive
             logger.warning(f"Error during format detection for {file_path}: {e}")
@@ -238,8 +257,10 @@ class DoclingJsonReader(BaseReader):
                 and '"DoclingDocument"' in chunk
                 and '"version"' in chunk
             )
-            
-            logger.debug(f"DoclingDocument content markers found in {path}: {has_markers}")
+
+            logger.debug(
+                f"DoclingDocument content markers found in {path}: {has_markers}"
+            )
             return has_markers
 
         except (IOError, UnicodeDecodeError) as e:

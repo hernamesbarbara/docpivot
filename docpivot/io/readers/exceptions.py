@@ -21,7 +21,7 @@ class DocPivotError(Exception):
         message: str,
         error_code: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
-        cause: Optional[Exception] = None
+        cause: Optional[Exception] = None,
     ):
         """Initialize DocPivotError.
 
@@ -66,7 +66,7 @@ class ValidationError(DocPivotError):
         message: str,
         field_errors: Optional[Dict[str, List[str]]] = None,
         validation_rules: Optional[List[str]] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ):
         """Initialize ValidationError.
 
@@ -112,7 +112,7 @@ class TransformationError(DocPivotError):
         message: str,
         transformation_type: Optional[str] = None,
         recovery_suggestions: Optional[List[str]] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ):
         """Initialize TransformationError.
 
@@ -139,7 +139,7 @@ class ConfigurationError(DocPivotError):
         message: str,
         invalid_parameters: Optional[List[str]] = None,
         valid_options: Optional[Dict[str, List[str]]] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ):
         """Initialize ConfigurationError.
 
@@ -167,7 +167,7 @@ class UnsupportedFormatError(DocPivotError, ValueError):
         file_path: str,
         supported_formats: Optional[List[str]] = None,
         detected_format: Optional[str] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ):
         """Initialize UnsupportedFormatError.
 
@@ -185,13 +185,15 @@ class UnsupportedFormatError(DocPivotError, ValueError):
             ]
 
         message_parts = [f"Unsupported file format: '{file_path}'"]
-        
+
         if detected_format:
             message_parts.append(f"Detected format: {detected_format}")
-            
+
         message_parts.append("Supported formats:")
         message_parts.extend(f"  - {fmt}" for fmt in supported_formats)
-        message_parts.append("\nTo add support for additional formats, extend BaseReader.")
+        message_parts.append(
+            "\nTo add support for additional formats, extend BaseReader."
+        )
 
         message = "\n".join(message_parts)
 
@@ -199,16 +201,13 @@ class UnsupportedFormatError(DocPivotError, ValueError):
         context = {
             "file_path": file_path,
             "supported_formats": supported_formats,
-            "detected_format": detected_format
+            "detected_format": detected_format,
         }
 
         kwargs_copy = kwargs.copy()
-        kwargs_copy.update({
-            "error_code": "UNSUPPORTED_FORMAT",
-            "context": context
-        })
+        kwargs_copy.update({"error_code": "UNSUPPORTED_FORMAT", "context": context})
         super().__init__(message, **kwargs_copy)
-        
+
         # Maintain backward compatibility
         self.file_path = file_path
         self.supported_formats = supported_formats
@@ -227,7 +226,7 @@ class FileAccessError(DocPivotError):
         file_path: str,
         operation: str,
         permission_issue: bool = False,
-        **kwargs: Any
+        **kwargs: Any,
     ):
         """Initialize FileAccessError.
 
@@ -242,18 +241,15 @@ class FileAccessError(DocPivotError):
         context = {
             "file_path": file_path,
             "operation": operation,
-            "permission_issue": permission_issue
+            "permission_issue": permission_issue,
         }
-        
+
         # Merge with any additional context passed in kwargs
         if "context" in kwargs:
             context.update(kwargs["context"])
 
         kwargs_copy = kwargs.copy()
-        kwargs_copy.update({
-            "error_code": "FILE_ACCESS_ERROR",
-            "context": context
-        })
+        kwargs_copy.update({"error_code": "FILE_ACCESS_ERROR", "context": context})
         super().__init__(message, **kwargs_copy)
         self.file_path = file_path
         self.operation = operation
@@ -274,7 +270,7 @@ class SchemaValidationError(ValidationError):
         expected_schema: Optional[str] = None,
         actual_schema: Optional[str] = None,
         missing_fields: Optional[List[str]] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ):
         """Initialize SchemaValidationError.
 
@@ -290,14 +286,13 @@ class SchemaValidationError(ValidationError):
             "schema_name": schema_name,
             "expected_schema": expected_schema,
             "actual_schema": actual_schema,
-            "missing_fields": missing_fields or []
+            "missing_fields": missing_fields or [],
         }
 
         kwargs_copy = kwargs.copy()
-        kwargs_copy.update({
-            "error_code": "SCHEMA_VALIDATION_ERROR",
-            "context": context
-        })
+        kwargs_copy.update(
+            {"error_code": "SCHEMA_VALIDATION_ERROR", "context": context}
+        )
         super().__init__(message, **kwargs_copy)
         self.schema_name = schema_name
         self.expected_schema = expected_schema

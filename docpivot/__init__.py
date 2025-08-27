@@ -12,10 +12,10 @@ from docpivot.workflows import load_document, load_and_serialize, convert_docume
 
 __all__ = [
     # High-level API functions (primary interface)
-    "load_document", 
-    "load_and_serialize", 
+    "load_document",
+    "load_and_serialize",
     "convert_document",
     # Core classes for advanced usage
-    "BaseReader", 
-    "SerializerProvider"
+    "BaseReader",
+    "SerializerProvider",
 ]
