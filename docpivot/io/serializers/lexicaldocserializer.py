@@ -21,10 +21,14 @@ from docling_core.types.doc.document import (
 from docpivot.io.readers.exceptions import (
     ValidationError,
     TransformationError,
-    ConfigurationError
+    ConfigurationError,
 )
 from docpivot.validation import validate_docling_document, parameter_validator
-from docpivot.logging_config import get_logger, PerformanceLogger, log_exception_with_context
+from docpivot.logging_config import (
+    get_logger,
+    PerformanceLogger,
+    log_exception_with_context,
+)
 
 logger = get_logger(__name__)
 perf_logger = PerformanceLogger(logger)
@@ -227,7 +231,7 @@ class LexicalDocSerializer:
             except AttributeError:
                 # If params doesn't have skip_validation, assume we should validate
                 should_validate = True
-            
+
             if should_validate:
                 validate_docling_document(self.doc)
                 logger.debug("DoclingDocument validation passed")
@@ -246,22 +250,22 @@ class LexicalDocSerializer:
             try:
                 indent = JSON_INDENT_SIZE if self.params.indent_json else None
                 json_text = json.dumps(lexical_data, indent=indent, ensure_ascii=False)
-                
+
                 # Log performance metrics
                 duration = (time.time() - start_time) * 1000
                 perf_logger.log_operation_time(
-                    "Lexical serialization", 
-                    duration, 
+                    "Lexical serialization",
+                    duration,
                     {
                         "output_size_chars": len(json_text),
                         "indent_json": self.params.indent_json,
-                        "include_metadata": self.params.include_metadata
-                    }
+                        "include_metadata": self.params.include_metadata,
+                    },
                 )
                 logger.info("Successfully serialized DoclingDocument to Lexical JSON")
-                
+
                 return SerializationResult(text=json_text)
-                
+
             except (TypeError, ValueError) as e:
                 raise TransformationError(
                     f"Failed to serialize Lexical data to JSON: {e}. "
@@ -270,16 +274,18 @@ class LexicalDocSerializer:
                     recovery_suggestions=[
                         "Check for circular references in the document structure",
                         "Verify all data types are JSON-serializable",
-                        "Try with different serializer parameters"
+                        "Try with different serializer parameters",
                     ],
                     context={"original_error": str(e)},
-                    cause=e
+                    cause=e,
                 ) from e
 
         except (ValidationError, TransformationError, ConfigurationError):
             # Re-raise our custom exceptions without wrapping
             duration = (time.time() - start_time) * 1000
-            logger.error(f"Failed to serialize DoclingDocument to Lexical JSON after {duration:.2f}ms")
+            logger.error(
+                f"Failed to serialize DoclingDocument to Lexical JSON after {duration:.2f}ms"
+            )
             raise
         except Exception as e:
             # Handle unexpected errors with comprehensive context
@@ -287,16 +293,20 @@ class LexicalDocSerializer:
             context = {
                 "operation": "serialize",
                 "duration_ms": duration,
-                "serializer_params": self.params.__dict__ if hasattr(self.params, '__dict__') else str(self.params)
+                "serializer_params": (
+                    self.params.__dict__
+                    if hasattr(self.params, "__dict__")
+                    else str(self.params)
+                ),
             }
             log_exception_with_context(logger, e, "Lexical JSON serialization", context)
-            
+
             raise TransformationError(
                 f"Unexpected error during Lexical JSON serialization: {e}. "
                 f"Please check the document structure and try again.",
                 transformation_type="docling_to_lexical",
                 context=context,
-                cause=e
+                cause=e,
             ) from e
 
     def _validate_serializer_params(self) -> None:
@@ -309,7 +319,7 @@ class LexicalDocSerializer:
         if not isinstance(self.params, LexicalParams):
             raise ConfigurationError(
                 f"Invalid serializer parameters: expected LexicalParams, got {type(self.params).__name__}",
-                context={"actual_type": type(self.params).__name__}
+                context={"actual_type": type(self.params).__name__},
             )
 
         # Validate version parameter
@@ -318,7 +328,7 @@ class LexicalDocSerializer:
                 f"Invalid version parameter: {self.params.version}. Version must be a positive integer.",
                 invalid_parameters=["version"],
                 valid_options={"version": ["Any positive integer"]},
-                context={"provided_version": self.params.version}
+                context={"provided_version": self.params.version},
             )
 
         # Validate boolean parameters
@@ -330,7 +340,7 @@ class LexicalDocSerializer:
                     f"Invalid {param_name} parameter: {param_value}. Must be a boolean value.",
                     invalid_parameters=[param_name],
                     valid_options={param_name: ["true", "false"]},
-                    context={f"provided_{param_name}": param_value}
+                    context={f"provided_{param_name}": param_value},
                 )
 
         # Validate custom root attributes
@@ -339,7 +349,9 @@ class LexicalDocSerializer:
                 raise ConfigurationError(
                     f"Invalid custom_root_attributes: must be a dictionary, got {type(self.params.custom_root_attributes).__name__}",
                     invalid_parameters=["custom_root_attributes"],
-                    context={"actual_type": type(self.params.custom_root_attributes).__name__}
+                    context={
+                        "actual_type": type(self.params.custom_root_attributes).__name__
+                    },
                 )
 
         logger.debug("Serializer parameters validation completed successfully")
@@ -354,7 +366,7 @@ class LexicalDocSerializer:
             TransformationError: If document transformation fails
         """
         logger.debug("Starting DoclingDocument to Lexical transformation")
-        
+
         try:
             # Process body children to create Lexical nodes with error handling
             try:
@@ -368,10 +380,10 @@ class LexicalDocSerializer:
                     recovery_suggestions=[
                         "Check that the document body contains valid elements",
                         "Verify all referenced elements exist in the document",
-                        "Ensure element references are properly formatted"
+                        "Ensure element references are properly formatted",
                     ],
                     context={"original_error": str(e)},
-                    cause=e
+                    cause=e,
                 ) from e
 
             # Create the root Lexical structure
@@ -388,9 +400,13 @@ class LexicalDocSerializer:
             if self.params.custom_root_attributes:
                 try:
                     root_node.update(self.params.custom_root_attributes)
-                    logger.debug(f"Added {len(self.params.custom_root_attributes)} custom root attributes")
+                    logger.debug(
+                        f"Added {len(self.params.custom_root_attributes)} custom root attributes"
+                    )
                 except Exception as e:
-                    logger.warning(f"Failed to add custom root attributes: {e}. Proceeding without them.")
+                    logger.warning(
+                        f"Failed to add custom root attributes: {e}. Proceeding without them."
+                    )
 
             lexical_data = {"root": root_node}
 
@@ -399,10 +415,12 @@ class LexicalDocSerializer:
                 try:
                     metadata = {}
                     if hasattr(self.doc, "name") and self.doc.name:
-                        metadata.update({
-                            "document_name": self.doc.name,
-                            "version": getattr(self.doc, "version", "1.0.0"),
-                        })
+                        metadata.update(
+                            {
+                                "document_name": self.doc.name,
+                                "version": getattr(self.doc, "version", "1.0.0"),
+                            }
+                        )
 
                     # Handle origin object serialization
                     if hasattr(self.doc, "origin") and self.doc.origin:
@@ -418,11 +436,15 @@ class LexicalDocSerializer:
                         lexical_data["metadata"] = metadata
                         logger.debug(f"Added metadata with {len(metadata)} fields")
                 except Exception as e:
-                    logger.warning(f"Failed to include document metadata: {e}. Proceeding without metadata.")
+                    logger.warning(
+                        f"Failed to include document metadata: {e}. Proceeding without metadata."
+                    )
 
-            logger.debug("DoclingDocument to Lexical transformation completed successfully")
+            logger.debug(
+                "DoclingDocument to Lexical transformation completed successfully"
+            )
             return lexical_data
-            
+
         except TransformationError:
             # Re-raise transformation errors without wrapping
             raise
@@ -435,10 +457,10 @@ class LexicalDocSerializer:
                 recovery_suggestions=[
                     "Check the document structure for validity",
                     "Verify all document elements are properly formed",
-                    "Try with simplified serializer parameters"
+                    "Try with simplified serializer parameters",
                 ],
                 context={"original_error": str(e)},
-                cause=e
+                cause=e,
             ) from e
 
     def _process_body_children(self) -> List[Dict[str, Any]]:
@@ -534,27 +556,31 @@ class LexicalDocSerializer:
         # First check if the text_item has style information
         if text_item:
             # Check if the item has any style attributes
-            if hasattr(text_item, 'style'):
-                style = getattr(text_item, 'style', {})
+            if hasattr(text_item, "style"):
+                style = getattr(text_item, "style", {})
                 if isinstance(style, dict):
-                    if (style.get('bold') or
-                            style.get('font_weight', '').lower()
-                            in ['bold', '700']):
+                    if style.get("bold") or style.get("font_weight", "").lower() in [
+                        "bold",
+                        "700",
+                    ]:
                         format_types.append("bold")
-                    if (style.get('italic') or
-                            style.get('font_style', '').lower() == 'italic'):
+                    if (
+                        style.get("italic")
+                        or style.get("font_style", "").lower() == "italic"
+                    ):
                         format_types.append("italic")
-                    if style.get('underline'):
+                    if style.get("underline"):
                         format_types.append("underline")
 
             # Check if the item has formatting attributes directly
-            if (hasattr(text_item, 'font_weight') and
-                    str(getattr(text_item, 'font_weight', '')).lower()
-                    in ['bold', '700']):
+            if hasattr(text_item, "font_weight") and str(
+                getattr(text_item, "font_weight", "")
+            ).lower() in ["bold", "700"]:
                 format_types.append("bold")
-            if (hasattr(text_item, 'font_style') and
-                    str(getattr(text_item, 'font_style', '')).lower()
-                    == 'italic'):
+            if (
+                hasattr(text_item, "font_style")
+                and str(getattr(text_item, "font_style", "")).lower() == "italic"
+            ):
                 format_types.append("italic")
 
         # Fallback to heuristic detection for common formatting patterns
@@ -563,20 +589,27 @@ class LexicalDocSerializer:
         # Detect emphasis patterns (enhanced heuristics)
         if not format_types:  # Only use heuristics if no style info found
             # Bold text patterns
-            if (("bold" in lower_text and
-                 ("are" in lower_text or "terms" in lower_text)) or
-                text_content.isupper() or
-                "important" in lower_text.lower() or
-                (text_content.startswith("**") and
-                 text_content.endswith("**"))):
+            if (
+                (
+                    "bold" in lower_text
+                    and ("are" in lower_text or "terms" in lower_text)
+                )
+                or text_content.isupper()
+                or "important" in lower_text.lower()
+                or (text_content.startswith("**") and text_content.endswith("**"))
+            ):
                 format_types.append("bold")
 
             # Italic text patterns
-            elif (("italic" in lower_text and "emphasis" in lower_text) or
-                  "primarily used" in lower_text or
-                  (text_content.startswith("*") and
-                   text_content.endswith("*") and
-                   not text_content.startswith("**"))):
+            elif (
+                ("italic" in lower_text and "emphasis" in lower_text)
+                or "primarily used" in lower_text
+                or (
+                    text_content.startswith("*")
+                    and text_content.endswith("*")
+                    and not text_content.startswith("**")
+                )
+            ):
                 format_types.append("italic")
 
         return format_types
@@ -631,18 +664,15 @@ class LexicalDocSerializer:
         import re
 
         # URL pattern to detect links
-        url_pattern = (r'https?://[^\s<>"{}|\\^`\[\]]+'
-                       r'|www\.[^\s<>"{}|\\^`\[\]]+')
+        url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+' r'|www\.[^\s<>"{}|\\^`\[\]]+'
 
         # Find all URLs in the text
         urls = list(re.finditer(url_pattern, text_content))
 
         if not urls:
             # No links found, return a single formatted text node
-            format_types = self._detect_text_formatting(
-                text_content, text_item)
-            return [self._create_formatted_text_node(
-                text_content, format_types)]
+            format_types = self._detect_text_formatting(text_content, text_item)
+            return [self._create_formatted_text_node(text_content, format_types)]
 
         nodes = []
         last_end = 0
@@ -650,18 +680,18 @@ class LexicalDocSerializer:
         for url_match in urls:
             # Add text before the URL as a regular text node
             if url_match.start() > last_end:
-                before_text = text_content[last_end:url_match.start()]
+                before_text = text_content[last_end : url_match.start()]
                 if before_text.strip():  # Only add non-empty text
-                    format_types = self._detect_text_formatting(
-                        before_text, text_item)
-                    nodes.append(self._create_formatted_text_node(
-                        before_text, format_types))
+                    format_types = self._detect_text_formatting(before_text, text_item)
+                    nodes.append(
+                        self._create_formatted_text_node(before_text, format_types)
+                    )
 
             # Create link node
             url = url_match.group()
             # Ensure URL has protocol
-            if not url.startswith('http'):
-                url = 'https://' + url
+            if not url.startswith("http"):
+                url = "https://" + url
 
             link_text = url_match.group()  # Display the original match
             nodes.append(self._create_link_node(link_text, url))
@@ -672,10 +702,8 @@ class LexicalDocSerializer:
         if last_end < len(text_content):
             after_text = text_content[last_end:]
             if after_text.strip():  # Only add non-empty text
-                format_types = self._detect_text_formatting(
-                    after_text, text_item)
-                nodes.append(self._create_formatted_text_node(
-                    after_text, format_types))
+                format_types = self._detect_text_formatting(after_text, text_item)
+                nodes.append(self._create_formatted_text_node(after_text, format_types))
 
         return nodes
 

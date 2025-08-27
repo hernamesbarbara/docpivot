@@ -11,14 +11,27 @@ from contextlib import contextmanager
 from docling_core.transforms.serializer.base import SerializationResult
 from docling_core.types import DoclingDocument
 from docling_core.types.doc.document import (
-    GroupItem, OrderedList, SectionHeaderItem, TextItem, TableItem,
-    UnorderedList, PictureItem,
+    GroupItem,
+    OrderedList,
+    SectionHeaderItem,
+    TextItem,
+    TableItem,
+    UnorderedList,
+    PictureItem,
 )
 
 from .lexicaldocserializer import LexicalParams, ComponentSerializer, ImageSerializer
-from ..readers.exceptions import ValidationError, TransformationError, ConfigurationError
+from ..readers.exceptions import (
+    ValidationError,
+    TransformationError,
+    ConfigurationError,
+)
 from docpivot.validation import validate_docling_document
-from docpivot.logging_config import get_logger, PerformanceLogger, log_exception_with_context
+from docpivot.logging_config import (
+    get_logger,
+    PerformanceLogger,
+    log_exception_with_context,
+)
 from docpivot.performance import PerformanceConfig
 
 logger = get_logger(__name__)
@@ -86,30 +99,30 @@ FORMAT_STRIKETHROUGH = 8
 @dataclass
 class OptimizedLexicalParams(LexicalParams):
     """Extended parameters for optimized Lexical serialization."""
-    
+
     # Memory optimization options
     enable_streaming: bool = False  # Force streaming mode
     batch_size: int = BATCH_SIZE  # Elements per batch
     memory_efficient_mode: bool = False  # Reduce memory usage
-    
+
     # Performance tuning
     use_fast_json: bool = True  # Use fast JSON libraries
     buffer_size: int = JSON_BUFFER_SIZE  # JSON generation buffer size
     parallel_processing: bool = False  # Use parallel processing for large docs
     max_workers: int = 4  # Worker threads for parallel processing
-    
+
     # Optimization toggles
     skip_validation: bool = False  # Skip document validation for performance
     optimize_text_formatting: bool = True  # Use optimized text processing
     cache_node_creation: bool = False  # Cache frequently created nodes
-    
+
     # Progress tracking
     progress_callback: Optional[Callable[[float], None]] = None  # Progress updates
 
 
 class OptimizedLexicalDocSerializer:
     """Performance-optimized serializer for converting DoclingDocument to Lexical JSON.
-    
+
     Features:
     - Streaming serialization for large documents
     - Memory-efficient processing with batching
@@ -144,18 +157,22 @@ class OptimizedLexicalDocSerializer:
         self.image_serializer = image_serializer or ImageSerializer()
         self.table_serializer = table_serializer
         self.performance_config = performance_config or PerformanceConfig()
-        
+
         # Select JSON encoder
         self._json_encoder = self._select_json_encoder()
-        
+
         # Node creation cache
-        self._node_cache: Dict[str, Any] = {} if self.params.cache_node_creation else None
-        
+        self._node_cache: Optional[Dict[str, Any]] = (
+            {} if self.params.cache_node_creation else None
+        )
+
         # Performance metrics
         self._elements_processed = 0
         self._start_time = 0.0
-        
-        logger.debug(f"OptimizedLexicalDocSerializer initialized with {self._json_encoder.__name__}")
+
+        logger.debug(
+            f"OptimizedLexicalDocSerializer initialized with {self._json_encoder.__name__}"
+        )
 
     def serialize(self) -> SerializationResult:
         """Serialize DoclingDocument to Lexical JSON with optimizations.
@@ -183,12 +200,14 @@ class OptimizedLexicalDocSerializer:
             # Determine processing strategy
             total_elements = self._count_total_elements()
             use_streaming = (
-                self.params.enable_streaming or 
-                total_elements > STREAMING_THRESHOLD_ELEMENTS
+                self.params.enable_streaming
+                or total_elements > STREAMING_THRESHOLD_ELEMENTS
             )
-            
-            logger.debug(f"Processing {total_elements} elements, streaming: {use_streaming}")
-            
+
+            logger.debug(
+                f"Processing {total_elements} elements, streaming: {use_streaming}"
+            )
+
             # Initialize progress tracking
             if self.params.progress_callback:
                 self.params.progress_callback(0.0)
@@ -211,12 +230,14 @@ class OptimizedLexicalDocSerializer:
                     "output_size_chars": len(json_text),
                     "streaming": use_streaming,
                     "parallel": self.params.parallel_processing,
-                    "json_encoder": self._json_encoder.__name__
-                }
+                    "json_encoder": self._json_encoder.__name__,
+                },
             )
-            
-            logger.info(f"Optimized serialization complete: {duration:.2f}ms, {len(json_text)} chars")
-            
+
+            logger.info(
+                f"Optimized serialization complete: {duration:.2f}ms, {len(json_text)} chars"
+            )
+
             # Final progress update
             if self.params.progress_callback:
                 self.params.progress_callback(1.0)
@@ -234,100 +255,102 @@ class OptimizedLexicalDocSerializer:
             context = {
                 "operation": "optimized_serialize",
                 "duration_ms": duration,
-                "elements_processed": self._elements_processed
+                "elements_processed": self._elements_processed,
             }
-            log_exception_with_context(logger, e, "Optimized Lexical serialization", context)
-            
+            log_exception_with_context(
+                logger, e, "Optimized Lexical serialization", context
+            )
+
             raise TransformationError(
                 f"Unexpected error during optimized serialization: {e}",
                 transformation_type="optimized_lexical",
                 context=context,
-                cause=e
+                cause=e,
             ) from e
 
     def _serialize_streaming(self) -> str:
         """Serialize using streaming approach for large documents."""
         logger.debug("Using streaming serialization")
-        
+
         try:
             # Build root structure
             root_data = self._build_root_structure_streaming()
-            
+
             # Serialize to JSON with streaming
             return self._encode_json_streaming(root_data)
-            
+
         except Exception as e:
             raise TransformationError(
                 f"Streaming serialization failed: {e}",
                 transformation_type="streaming_lexical",
                 context={"elements_processed": self._elements_processed},
-                cause=e
+                cause=e,
             ) from e
 
     def _serialize_parallel(self) -> str:
         """Serialize using parallel processing for large documents."""
         logger.debug("Using parallel serialization")
-        
+
         try:
             from concurrent.futures import ThreadPoolExecutor, as_completed
-            
+
             # Split body children into chunks
             chunks = self._split_body_children_into_chunks()
-            
+
             # Process chunks in parallel
             with ThreadPoolExecutor(max_workers=self.params.max_workers) as executor:
                 futures = [
                     executor.submit(self._process_body_children_chunk, chunk)
                     for chunk in chunks
                 ]
-                
+
                 lexical_children = []
                 for future in as_completed(futures):
                     chunk_result = future.result()
                     lexical_children.extend(chunk_result)
-            
+
             # Update progress
             if self.params.progress_callback:
                 self.params.progress_callback(0.8)
-            
+
             # Build final structure
             lexical_data = self._build_final_structure(lexical_children)
-            
+
             # Serialize to JSON
             return self._encode_json(lexical_data)
-            
+
         except Exception as e:
             raise TransformationError(
                 f"Parallel serialization failed: {e}",
                 transformation_type="parallel_lexical",
                 context={"elements_processed": self._elements_processed},
-                cause=e
+                cause=e,
             ) from e
 
     def _serialize_optimized(self) -> str:
         """Serialize using optimized standard approach."""
         logger.debug("Using optimized standard serialization")
-        
+
         try:
             # Process body children with optimizations
             lexical_children = self._process_body_children_optimized()
-            
+
             # Update progress
             if self.params.progress_callback:
                 self.params.progress_callback(0.8)
-            
+
             # Build final structure
             lexical_data = self._build_final_structure(lexical_children)
-            
+
             # Serialize to JSON
             return self._encode_json(lexical_data)
-            
+
         except Exception as e:
             raise TransformationError(
                 f"Optimized serialization failed: {e}",
                 transformation_type="optimized_lexical",
                 context={"elements_processed": self._elements_processed},
-                cause=e
+                cause=e,
             ) from e
 
     def _build_root_structure_streaming(self) -> Dict[str, Any]:
@@ -335,14 +358,14 @@ class OptimizedLexicalDocSerializer:
         # Process children in batches
         children_generator = self._process_body_children_generator()
         lexical_children = list(children_generator)
-        
+
         return self._build_final_structure(lexical_children)
 
     def _process_body_children_generator(self) -> Generator[Dict[str, Any], None, None]:
         """Generator that yields processed body children."""
         batch = []
         batch_count = 0
-        
+
         for i, child_ref in enumerate(self.doc.body.children):
             try:
                 if not child_ref.cref:
@@ -360,12 +383,12 @@ class OptimizedLexicalDocSerializer:
                         yield node
                     batch.clear()
                     batch_count = 0
-                    
+
                     # Update progress
                     if self.params.progress_callback:
                         progress = min(0.7, i / len(self.doc.body.children) * 0.7)
                         self.params.progress_callback(progress)
-                    
+
                     # Force garbage collection for memory management
                     if self.params.memory_efficient_mode:
                         gc.collect()
@@ -381,7 +404,7 @@ class OptimizedLexicalDocSerializer:
     def _process_body_children_optimized(self) -> List[Dict[str, Any]]:
         """Process body children with standard optimizations."""
         lexical_nodes = []
-        
+
         for i, child_ref in enumerate(self.doc.body.children):
             try:
                 if not child_ref.cref:
@@ -398,7 +421,10 @@ class OptimizedLexicalDocSerializer:
                     self.params.progress_callback(progress)
 
                 # Memory management for large documents
-                if self.params.memory_efficient_mode and i % self.params.batch_size == 0:
+                if (
+                    self.params.memory_efficient_mode
+                    and i % self.params.batch_size == 0
+                ):
                     gc.collect()
 
             except Exception as e:
@@ -411,19 +437,21 @@ class OptimizedLexicalDocSerializer:
         """Split body children into chunks for parallel processing."""
         children = self.doc.body.children
         chunk_size = max(1, len(children) // self.params.max_workers)
-        
+
         chunks = []
         for i in range(0, len(children), chunk_size):
-            chunk = children[i:i + chunk_size]
+            chunk = children[i : i + chunk_size]
             chunks.append(chunk)
-        
+
         logger.debug(f"Split {len(children)} children into {len(chunks)} chunks")
         return chunks
 
-    def _process_body_children_chunk(self, children_chunk: List) -> List[Dict[str, Any]]:
+    def _process_body_children_chunk(
+        self, children_chunk: List
+    ) -> List[Dict[str, Any]]:
         """Process a chunk of body children."""
         lexical_nodes = []
-        
+
         for child_ref in children_chunk:
             try:
                 if not child_ref.cref:
@@ -484,14 +512,18 @@ class OptimizedLexicalDocSerializer:
 
         return None
 
-    def _create_text_node_optimized(self, text_item: TextItemType) -> Optional[Dict[str, Any]]:
+    def _create_text_node_optimized(
+        self, text_item: TextItemType
+    ) -> Optional[Dict[str, Any]]:
         """Create optimized text node."""
         if text_item.label == "section_header":
             return self._create_heading_node_optimized(text_item)
         else:
             return self._create_paragraph_node_optimized(text_item)
 
-    def _create_heading_node_optimized(self, text_item: SectionHeaderItem) -> Dict[str, Any]:
+    def _create_heading_node_optimized(
+        self, text_item: SectionHeaderItem
+    ) -> Dict[str, Any]:
         """Create optimized heading node."""
         # Check cache first
         if self._node_cache is not None:
@@ -505,12 +537,17 @@ class OptimizedLexicalDocSerializer:
             text_content = getattr(text_item, "text", "") or ""
 
             # Optimized text processing
+            format_types: list[str]
             if self.params.optimize_text_formatting:
-                format_types = self._detect_text_formatting_fast(text_content, text_item)
+                format_types = self._detect_text_formatting_fast(
+                    text_content, text_item
+                )
             else:
-                format_types = []
+                format_types: list[str] = []
 
-            text_node = self._create_formatted_text_node_optimized(text_content, format_types)
+            text_node = self._create_formatted_text_node_optimized(
+                text_content, format_types
+            )
 
             node = {
                 "children": [text_node],
@@ -576,7 +613,9 @@ class OptimizedLexicalDocSerializer:
                                 cell_text = getattr(cell, "text", "") or ""
                                 lexical_cell = {
                                     "children": [
-                                        self._create_formatted_text_node_optimized(cell_text, [])
+                                        self._create_formatted_text_node_optimized(
+                                            cell_text, []
+                                        )
                                     ],
                                     "direction": TEXT_DIRECTION_LTR,
                                     "format": DEFAULT_STYLE,
@@ -586,7 +625,10 @@ class OptimizedLexicalDocSerializer:
                                 }
 
                                 # Add header state efficiently
-                                if hasattr(cell, "column_header") and cell.column_header:
+                                if (
+                                    hasattr(cell, "column_header")
+                                    and cell.column_header
+                                ):
                                     lexical_cell["headerState"] = HEADER_STATE_VALUE
 
                                 cells.append(lexical_cell)
@@ -623,13 +665,19 @@ class OptimizedLexicalDocSerializer:
         # Determine list type efficiently
         list_type = LIST_TYPE_UNORDERED
         try:
-            if group_item.children and group_item.children[0].cref and "texts" in group_item.children[0].cref:
+            if (
+                group_item.children
+                and group_item.children[0].cref
+                and "texts" in group_item.children[0].cref
+            ):
                 ref_parts = group_item.children[0].cref.split("/")
                 if len(ref_parts) >= 3 and ref_parts[1] == "texts":
                     try:
                         text_index = int(ref_parts[2])
                         if text_index < len(self.doc.texts):
-                            first_text = getattr(self.doc.texts[text_index], "text", "") or ""
+                            first_text = (
+                                getattr(self.doc.texts[text_index], "text", "") or ""
+                            )
                             if first_text and ". " in first_text:
                                 prefix = first_text.split(". ", 1)[0].strip()
                                 if prefix.isdigit():
@@ -667,9 +715,15 @@ class OptimizedLexicalDocSerializer:
 
                         # Process text optimally
                         if self.params.optimize_text_formatting:
-                            children = self._process_text_with_links_fast(text_content, text_item)
+                            children = self._process_text_with_links_fast(
+                                text_content, text_item
+                            )
                         else:
-                            children = [self._create_formatted_text_node_optimized(text_content, [])]
+                            children = [
+                                self._create_formatted_text_node_optimized(
+                                    text_content, []
+                                )
+                            ]
 
                         list_item = {
                             "children": children,
@@ -697,41 +751,51 @@ class OptimizedLexicalDocSerializer:
             "version": self.params.version,
         }
 
-    def _detect_text_formatting_fast(self, text_content: str, text_item: Optional[TextItemType] = None) -> List[str]:
+    def _detect_text_formatting_fast(
+        self, text_content: str, text_item: Optional[TextItemType] = None
+    ) -> List[str]:
         """Fast text formatting detection with minimal overhead."""
         format_types = []
-        
+
         if not text_content or not self.params.preserve_formatting:
             return format_types
 
         # Quick heuristic checks (faster than detailed analysis)
         lower_text = text_content.lower()
-        
-        if (text_content.isupper() or 
-            "important" in lower_text or 
-            text_content.startswith("**")):
+
+        if (
+            text_content.isupper()
+            or "important" in lower_text
+            or text_content.startswith("**")
+        ):
             format_types.append("bold")
-        elif ("italic" in lower_text or 
-              text_content.startswith("*")):
+        elif "italic" in lower_text or text_content.startswith("*"):
             format_types.append("italic")
 
         return format_types
 
-    def _process_text_with_links_fast(self, text_content: str, text_item: Optional[TextItemType] = None) -> List[Dict[str, Any]]:
+    def _process_text_with_links_fast(
+        self, text_content: str, text_item: Optional[TextItemType] = None
+    ) -> List[Dict[str, Any]]:
         """Fast link processing with minimal regex overhead."""
         # Quick check for URLs to avoid regex if not needed
         if "http" not in text_content and "www." not in text_content:
             format_types = self._detect_text_formatting_fast(text_content, text_item)
-            return [self._create_formatted_text_node_optimized(text_content, format_types)]
+            return [
+                self._create_formatted_text_node_optimized(text_content, format_types)
+            ]
 
         # Use simplified URL detection
         import re
-        url_pattern = r'https?://\S+|www\.\S+'
+
+        url_pattern = r"https?://\S+|www\.\S+"
         urls = list(re.finditer(url_pattern, text_content))
 
         if not urls:
             format_types = self._detect_text_formatting_fast(text_content, text_item)
-            return [self._create_formatted_text_node_optimized(text_content, format_types)]
+            return [
+                self._create_formatted_text_node_optimized(text_content, format_types)
+            ]
 
         # Process URLs (simplified version of original logic)
         nodes = []
@@ -740,15 +804,21 @@ class OptimizedLexicalDocSerializer:
         for url_match in urls:
             # Add text before URL
             if url_match.start() > last_end:
-                before_text = text_content[last_end:url_match.start()]
+                before_text = text_content[last_end : url_match.start()]
                 if before_text.strip():
-                    format_types = self._detect_text_formatting_fast(before_text, text_item)
-                    nodes.append(self._create_formatted_text_node_optimized(before_text, format_types))
+                    format_types = self._detect_text_formatting_fast(
+                        before_text, text_item
+                    )
+                    nodes.append(
+                        self._create_formatted_text_node_optimized(
+                            before_text, format_types
+                        )
+                    )
 
             # Add link node
             url = url_match.group()
-            if not url.startswith('http'):
-                url = 'https://' + url
+            if not url.startswith("http"):
+                url = "https://" + url
             nodes.append(self._create_link_node_optimized(url_match.group(), url))
             last_end = url_match.end()
 
@@ -757,11 +827,15 @@ class OptimizedLexicalDocSerializer:
             after_text = text_content[last_end:]
             if after_text.strip():
                 format_types = self._detect_text_formatting_fast(after_text, text_item)
-                nodes.append(self._create_formatted_text_node_optimized(after_text, format_types))
+                nodes.append(
+                    self._create_formatted_text_node_optimized(after_text, format_types)
+                )
 
         return nodes
 
-    def _create_formatted_text_node_optimized(self, text_content: str, format_types: List[str]) -> Dict[str, Any]:
+    def _create_formatted_text_node_optimized(
+        self, text_content: str, format_types: List[str]
+    ) -> Dict[str, Any]:
         """Create optimized formatted text node."""
         # Calculate format bitmask efficiently
         format_value = 0
@@ -785,7 +859,9 @@ class OptimizedLexicalDocSerializer:
             "version": self.params.version,
         }
 
-    def _create_link_node_optimized(self, text_content: str, url: str) -> Dict[str, Any]:
+    def _create_link_node_optimized(
+        self, text_content: str, url: str
+    ) -> Dict[str, Any]:
         """Create optimized link node."""
         return {
             "children": [
@@ -819,7 +895,9 @@ class OptimizedLexicalDocSerializer:
             "version": self.params.version,
         }
 
-    def _build_final_structure(self, lexical_children: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _build_final_structure(
+        self, lexical_children: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """Build final Lexical structure with metadata."""
         root_node = {
             "children": lexical_children,
@@ -837,12 +915,12 @@ class OptimizedLexicalDocSerializer:
             except Exception as e:
                 logger.warning(f"Failed to add custom root attributes: {e}")
 
-        lexical_data = {"root": root_node}
+        lexical_data: dict[str, Any] = {"root": root_node}
 
         # Add metadata efficiently
         if self.params.include_metadata:
             try:
-                metadata = {}
+                metadata: dict[str, Any] = {}
                 if hasattr(self.doc, "name") and self.doc.name:
                     metadata["document_name"] = self.doc.name
                     metadata["version"] = getattr(self.doc, "version", "1.0.0")
@@ -873,6 +951,7 @@ class OptimizedLexicalDocSerializer:
         # Try fast JSON libraries
         try:
             import orjson
+
             logger.debug("Using orjson for JSON encoding")
             return orjson
         except ImportError:
@@ -880,6 +959,7 @@ class OptimizedLexicalDocSerializer:
 
         try:
             import ujson
+
             logger.debug("Using ujson for JSON encoding")
             return ujson
         except ImportError:
@@ -895,20 +975,25 @@ class OptimizedLexicalDocSerializer:
                 # Standard library json
                 indent = JSON_INDENT_SIZE if self.params.indent_json else None
                 return json.dumps(data, indent=indent, ensure_ascii=False)
-            
-            elif hasattr(self._json_encoder, '__name__') and self._json_encoder.__name__ == 'orjson':
+
+            elif (
+                hasattr(self._json_encoder, "__name__")
+                and self._json_encoder.__name__ == "orjson"
+            ):
                 # orjson
                 options = 0
                 if self.params.indent_json:
                     options |= self._json_encoder.OPT_INDENT_2
-                return self._json_encoder.dumps(data, option=options).decode('utf-8')
-            
-            elif hasattr(self._json_encoder, 'dumps'):
+                return self._json_encoder.dumps(data, option=options).decode("utf-8")
+
+            elif hasattr(self._json_encoder, "dumps"):
                 # ujson and other libraries
                 try:
                     if self.params.indent_json:
                         # Try with all parameters
-                        return self._json_encoder.dumps(data, indent=JSON_INDENT_SIZE, ensure_ascii=False)
+                        return self._json_encoder.dumps(
+                            data, indent=JSON_INDENT_SIZE, ensure_ascii=False
+                        )
                     else:
                         return self._json_encoder.dumps(data, ensure_ascii=False)
                 except TypeError:
@@ -917,17 +1002,17 @@ class OptimizedLexicalDocSerializer:
                         return self._json_encoder.dumps(data, indent=JSON_INDENT_SIZE)
                     else:
                         return self._json_encoder.dumps(data)
-            
+
             else:
                 # Ultimate fallback to standard json
                 indent = JSON_INDENT_SIZE if self.params.indent_json else None
                 return json.dumps(data, indent=indent, ensure_ascii=False)
-                
+
         except Exception as e:
             raise TransformationError(
                 f"JSON encoding failed: {e}",
                 transformation_type="json_encoding",
-                cause=e
+                cause=e,
             ) from e
 
     def _encode_json_streaming(self, data: Dict[str, Any]) -> str:
@@ -939,17 +1024,17 @@ class OptimizedLexicalDocSerializer:
             raise TransformationError(
                 f"Streaming JSON encoding failed: {e}",
                 transformation_type="streaming_json_encoding",
-                cause=e
+                cause=e,
             ) from e
 
     def _count_total_elements(self) -> int:
         """Count total elements in document for strategy selection."""
         return (
-            len(self.doc.body.children) +
-            len(self.doc.texts) +
-            len(getattr(self.doc, 'tables', [])) +
-            len(getattr(self.doc, 'groups', [])) +
-            len(getattr(self.doc, 'pictures', []))
+            len(self.doc.body.children)
+            + len(self.doc.texts)
+            + len(getattr(self.doc, "tables", []))
+            + len(getattr(self.doc, "groups", []))
+            + len(getattr(self.doc, "pictures", []))
         )
 
     def _validate_serializer_params(self) -> None:
@@ -957,21 +1042,21 @@ class OptimizedLexicalDocSerializer:
         if not isinstance(self.params, OptimizedLexicalParams):
             raise ConfigurationError(
                 f"Invalid parameters: expected OptimizedLexicalParams, got {type(self.params).__name__}",
-                context={"actual_type": type(self.params).__name__}
+                context={"actual_type": type(self.params).__name__},
             )
 
         # Validate batch size
         if self.params.batch_size <= 0:
             raise ConfigurationError(
                 f"Invalid batch_size: {self.params.batch_size}. Must be positive.",
-                invalid_parameters=["batch_size"]
+                invalid_parameters=["batch_size"],
             )
 
         # Validate worker count
         if self.params.max_workers <= 0:
             raise ConfigurationError(
                 f"Invalid max_workers: {self.params.max_workers}. Must be positive.",
-                invalid_parameters=["max_workers"]
+                invalid_parameters=["max_workers"],
             )
 
         logger.debug("Optimized serializer parameters validated successfully")
@@ -981,14 +1066,14 @@ class OptimizedLexicalDocSerializer:
         """Context manager for performance monitoring."""
         start_time = time.time()
         start_memory = self._get_memory_usage()
-        
+
         try:
             yield
         finally:
             duration_ms = (time.time() - start_time) * 1000
             end_memory = self._get_memory_usage()
             memory_delta = end_memory - start_memory
-            
+
             perf_logger.log_operation_time(
                 operation_name,
                 duration_ms,
@@ -998,8 +1083,8 @@ class OptimizedLexicalDocSerializer:
                     "json_encoder": self._json_encoder.__name__,
                     "streaming": self.params.enable_streaming,
                     "parallel": self.params.parallel_processing,
-                    "batch_size": self.params.batch_size
-                }
+                    "batch_size": self.params.batch_size,
+                },
             )
 
     def _get_memory_usage(self) -> float:
@@ -1007,6 +1092,7 @@ class OptimizedLexicalDocSerializer:
         try:
             import psutil
             import os
+
             process = psutil.Process(os.getpid())
             return process.memory_info().rss / (1024 * 1024)
         except ImportError:
@@ -1014,18 +1100,22 @@ class OptimizedLexicalDocSerializer:
 
     def get_performance_stats(self) -> Dict[str, Any]:
         """Get current performance statistics."""
-        duration = (time.time() - self._start_time) * 1000 if self._start_time > 0 else 0
-        
+        duration = (
+            (time.time() - self._start_time) * 1000 if self._start_time > 0 else 0
+        )
+
         return {
             "elements_processed": self._elements_processed,
             "duration_ms": duration,
-            "elements_per_second": (self._elements_processed / (duration / 1000)) if duration > 0 else 0,
+            "elements_per_second": (
+                (self._elements_processed / (duration / 1000)) if duration > 0 else 0
+            ),
             "json_encoder": self._json_encoder.__name__,
             "cache_size": len(self._node_cache) if self._node_cache else 0,
             "configuration": {
                 "streaming": self.params.enable_streaming,
                 "parallel": self.params.parallel_processing,
                 "batch_size": self.params.batch_size,
-                "memory_efficient": self.params.memory_efficient_mode
-            }
+                "memory_efficient": self.params.memory_efficient_mode,
+            },
         }

@@ -14,10 +14,14 @@ from .exceptions import (
     UnsupportedFormatError,
     ValidationError as DocPivotValidationError,
     TransformationError,
-    FileAccessError
+    FileAccessError,
 )
 from docpivot.validation import validate_lexical_json, validate_json_content
-from docpivot.logging_config import get_logger, PerformanceLogger, log_exception_with_context
+from docpivot.logging_config import (
+    get_logger,
+    PerformanceLogger,
+    log_exception_with_context,
+)
 
 logger = get_logger(__name__)
 perf_logger = PerformanceLogger(logger)
@@ -64,7 +68,7 @@ class LexicalJsonReader(BaseReader):
                     file_path_str,
                     "check_existence",
                     context={"original_error": str(e)},
-                    cause=e
+                    cause=e,
                 ) from e
             except IsADirectoryError as e:
                 raise FileAccessError(
@@ -72,9 +76,9 @@ class LexicalJsonReader(BaseReader):
                     file_path_str,
                     "check_file_type",
                     context={"original_error": str(e)},
-                    cause=e
+                    cause=e,
                 ) from e
-            
+
             # Log file size for performance monitoring
             file_size = path.stat().st_size
             logger.debug(f"File size: {file_size} bytes")
@@ -86,7 +90,9 @@ class LexicalJsonReader(BaseReader):
             # Read file content with comprehensive error handling
             try:
                 json_content = path.read_text(encoding="utf-8")
-                logger.debug(f"Successfully read {len(json_content)} characters from {file_path_str}")
+                logger.debug(
+                    f"Successfully read {len(json_content)} characters from {file_path_str}"
+                )
             except UnicodeDecodeError as e:
                 raise FileAccessError(
                     f"Unable to decode file '{file_path_str}' as UTF-8. "
@@ -94,7 +100,7 @@ class LexicalJsonReader(BaseReader):
                     file_path_str,
                     "read_text",
                     context={"encoding": "utf-8", "original_error": str(e)},
-                    cause=e
+                    cause=e,
                 ) from e
             except IOError as e:
                 raise FileAccessError(
@@ -104,26 +110,28 @@ class LexicalJsonReader(BaseReader):
                     "read_file",
                     permission_issue=("permission" in str(e).lower()),
                     context={"original_error": str(e)},
-                    cause=e
+                    cause=e,
                 ) from e
 
             # Parse and validate JSON content
             json_data = validate_json_content(json_content, file_path_str)
-            
+
             # Validate Lexical JSON structure using comprehensive validator
             validate_lexical_json(json_data, file_path_str)
 
             # Convert Lexical JSON to DoclingDocument with error recovery
             try:
                 document = self._convert_lexical_to_docling(json_data, file_path_str)
-                
+
                 # Log successful completion with performance metrics
                 duration = (time.time() - start_time) * 1000
-                perf_logger.log_file_processing(file_path_str, "load", duration, file_size)
+                perf_logger.log_file_processing(
+                    file_path_str, "load", duration, file_size
+                )
                 logger.info(f"Successfully loaded Lexical JSON from {file_path_str}")
-                
+
                 return document
-                
+
             except Exception as e:
                 raise TransformationError(
                     f"Failed to convert Lexical JSON to DoclingDocument from '{file_path_str}': {e}. "
@@ -133,19 +141,23 @@ class LexicalJsonReader(BaseReader):
                         "Verify the Lexical JSON structure is valid",
                         "Check that all required nodes and properties are present",
                         "Ensure node hierarchy is properly nested",
-                        "Try validating the original Lexical JSON in a Lexical editor"
+                        "Try validating the original Lexical JSON in a Lexical editor",
                     ],
-                    context={
-                        "file_path": file_path_str,
-                        "original_error": str(e)
-                    },
-                    cause=e
+                    context={"file_path": file_path_str, "original_error": str(e)},
+                    cause=e,
                 ) from e
 
-        except (DocPivotValidationError, FileAccessError, UnsupportedFormatError, TransformationError):
+        except (
+            DocPivotValidationError,
+            FileAccessError,
+            UnsupportedFormatError,
+            TransformationError,
+        ):
             # Re-raise our custom exceptions without wrapping
             duration = (time.time() - start_time) * 1000
-            logger.error(f"Failed to load Lexical JSON from {file_path_str} after {duration:.2f}ms")
+            logger.error(
+                f"Failed to load Lexical JSON from {file_path_str} after {duration:.2f}ms"
+            )
             raise
         except Exception as e:
             # Handle unexpected errors with comprehensive context
@@ -153,16 +165,16 @@ class LexicalJsonReader(BaseReader):
             context = {
                 "file_path": file_path_str,
                 "operation": "load_data",
-                "duration_ms": duration
+                "duration_ms": duration,
             }
             log_exception_with_context(logger, e, "Lexical JSON loading", context)
-            
+
             raise DocPivotValidationError(
                 f"Unexpected error loading Lexical JSON from '{file_path_str}': {e}. "
                 f"Please check the file format and try again.",
                 error_code="UNEXPECTED_LOAD_ERROR",
                 context=context,
-                cause=e
+                cause=e,
             ) from e
 
     def detect_format(self, file_path: Union[str, Path]) -> bool:
