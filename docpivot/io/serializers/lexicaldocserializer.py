@@ -4,9 +4,12 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Union, Protocol
+from pydantic.networks import AnyUrl
 
 from docling_core.transforms.serializer.base import SerializationResult
+from docling_core.transforms.serializer.common import BaseDocSerializer
 from docling_core.types import DoclingDocument
 from docling_core.types.doc.document import (
     GroupItem,
@@ -16,6 +19,9 @@ from docling_core.types.doc.document import (
     TableItem,
     UnorderedList,
     PictureItem,
+    NodeItem,
+    DocItem,
+    FloatingItem,
 )
 
 from docpivot.io.readers.exceptions import (
@@ -171,7 +177,7 @@ class ImageSerializer:
         return node
 
 
-class LexicalDocSerializer:
+class LexicalDocSerializer(BaseDocSerializer):
     """Serializer for converting DoclingDocument objects to Lexical JSON format.
 
     This serializer transforms DoclingDocument elements into Lexical's nested node
@@ -203,6 +209,8 @@ class LexicalDocSerializer:
             table_serializer: Optional custom table serializer
             **kwargs: Additional parameters for extensibility
         """
+        super().__init__()
+        # Store the document and initialize components
         self.doc = doc
         self.params = params or LexicalParams()
         self.image_serializer = image_serializer or ImageSerializer()
@@ -995,3 +1003,197 @@ class LexicalDocSerializer:
             "type": NODE_TYPE_LIST,
             "version": self.params.version,
         }
+
+    # Required abstract method implementations from BaseDocSerializer
+    def get_excluded_refs(self, **kwargs: Any) -> set[str]:
+        """Get set of item references that should be excluded from serialization.
+        
+        For Lexical format, we don't exclude any references as the format
+        handles all content types in the JSON structure.
+        
+        Returns:
+            Empty set - no exclusions for Lexical format
+        """
+        return set()
+
+    def get_parts(self, item: Optional[NodeItem] = None, **kwargs: Any) -> List[SerializationResult]:
+        """Get serialization parts for an item.
+        
+        For Lexical format, we serialize the entire document as one JSON structure
+        rather than individual parts.
+        
+        Args:
+            item: Optional item to get parts for
+            **kwargs: Additional parameters
+            
+        Returns:
+            List containing the complete serialization result
+        """
+        if item is None:
+            # Return the complete document serialization
+            return [self.serialize()]
+        
+        # For specific items, return empty list as Lexical handles complete structure
+        return []
+
+    def post_process(self, text: str, **kwargs: Any) -> str:
+        """Post-process the serialized text.
+        
+        For Lexical JSON format, no post-processing is needed as the JSON
+        is already properly formatted.
+        
+        Args:
+            text: The serialized text
+            **kwargs: Additional parameters
+            
+        Returns:
+            The text unchanged
+        """
+        return text
+
+    def requires_page_break(self) -> bool:
+        """Check if this serializer requires page breaks.
+        
+        Lexical JSON format doesn't use page breaks as it's a structured
+        JSON format rather than a text-based format.
+        
+        Returns:
+            False - no page breaks needed
+        """
+        return False
+
+    def serialize_annotations(self, item: DocItem, **kwargs: Any) -> SerializationResult:
+        """Serialize annotations for an item.
+        
+        For Lexical format, annotations are handled within the JSON structure
+        rather than as separate serialization results.
+        
+        Args:
+            item: The item to serialize annotations for
+            **kwargs: Additional parameters
+            
+        Returns:
+            Empty serialization result
+        """
+        return SerializationResult(text="")
+
+    def serialize_bold(self, text: str, **kwargs: Any) -> str:
+        """Serialize bold text formatting.
+        
+        For Lexical format, bold formatting is handled through the format
+        bitmask in the JSON structure, not as text markup.
+        
+        Args:
+            text: The text to format
+            **kwargs: Additional parameters
+            
+        Returns:
+            The text unchanged (formatting handled in JSON structure)
+        """
+        return text
+
+    def serialize_captions(self, item: FloatingItem, **kwargs: Any) -> SerializationResult:
+        """Serialize captions for a floating item.
+        
+        For Lexical format, captions are handled within the item's JSON
+        structure rather than as separate serialization results.
+        
+        Args:
+            item: The floating item to serialize captions for
+            **kwargs: Additional parameters
+            
+        Returns:
+            Empty serialization result
+        """
+        return SerializationResult(text="")
+
+    def serialize_hyperlink(self, text: str, hyperlink: Union[AnyUrl, Path], **kwargs: Any) -> str:
+        """Serialize hyperlink formatting.
+        
+        For Lexical format, hyperlinks are handled through dedicated link
+        nodes in the JSON structure, not as text markup.
+        
+        Args:
+            text: The link text
+            hyperlink: The link URL or path
+            **kwargs: Additional parameters
+            
+        Returns:
+            The text unchanged (links handled in JSON structure)
+        """
+        return text
+
+    def serialize_italic(self, text: str, **kwargs: Any) -> str:
+        """Serialize italic text formatting.
+        
+        For Lexical format, italic formatting is handled through the format
+        bitmask in the JSON structure, not as text markup.
+        
+        Args:
+            text: The text to format
+            **kwargs: Additional parameters
+            
+        Returns:
+            The text unchanged (formatting handled in JSON structure)
+        """
+        return text
+
+    def serialize_strikethrough(self, text: str, **kwargs: Any) -> str:
+        """Serialize strikethrough text formatting.
+        
+        For Lexical format, strikethrough formatting is handled through the format
+        bitmask in the JSON structure, not as text markup.
+        
+        Args:
+            text: The text to format
+            **kwargs: Additional parameters
+            
+        Returns:
+            The text unchanged (formatting handled in JSON structure)
+        """
+        return text
+
+    def serialize_subscript(self, text: str, **kwargs: Any) -> str:
+        """Serialize subscript text formatting.
+        
+        For Lexical format, subscript formatting would be handled through the format
+        bitmask in the JSON structure, not as text markup.
+        
+        Args:
+            text: The text to format
+            **kwargs: Additional parameters
+            
+        Returns:
+            The text unchanged (formatting handled in JSON structure)
+        """
+        return text
+
+    def serialize_superscript(self, text: str, **kwargs: Any) -> str:
+        """Serialize superscript text formatting.
+        
+        For Lexical format, superscript formatting would be handled through the format
+        bitmask in the JSON structure, not as text markup.
+        
+        Args:
+            text: The text to format
+            **kwargs: Additional parameters
+            
+        Returns:
+            The text unchanged (formatting handled in JSON structure)
+        """
+        return text
+
+    def serialize_underline(self, text: str, **kwargs: Any) -> str:
+        """Serialize underline text formatting.
+        
+        For Lexical format, underline formatting is handled through the format
+        bitmask in the JSON structure, not as text markup.
+        
+        Args:
+            text: The text to format
+            **kwargs: Additional parameters
+            
+        Returns:
+            The text unchanged (formatting handled in JSON structure)
+        """
+        return text
