@@ -508,7 +508,7 @@ class OptimizedDoclingJsonReader(BaseReader):
         Returns:
             Dictionary mapping file paths to loaded documents or exceptions
         """
-        results: dict[str, DoclingDocument | Exception] = {}
+        results: dict[str, Union[DoclingDocument, Exception]] = {}
         total_files = len(file_paths)
 
         for i, file_path in enumerate(file_paths):

@@ -4,12 +4,20 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docpivot"
-version = "0.1.0"
+version = "1.0.0"
 description = "Lightweight Python package extending Docling with additional format readers and serializers"
 readme = "README.md"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "DocPivot Contributors", email = "docpivot@example.com"},
+]
+maintainers = [
+    {name = "DocPivot Contributors", email = "docpivot@example.com"},
+]
+keywords = ["docling", "document", "conversion", "lexical", "json", "serialization"]
 requires-python = ">=3.9"
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
@@ -18,15 +26,38 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing :: Markup",
+    "Topic :: Utilities",
 ]
 dependencies = [
     "docling-core>=2.0.0",
+    "pydantic>=2.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
+    "mypy>=1.0.0",
+    "black>=22.0.0",
+    "ruff>=0.1.0",
+]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+lint = [
+    "mypy>=1.0.0",
+    "black>=22.0.0", 
+    "ruff>=0.1.0",
+]
+all = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "mypy>=1.0.0",
+    "black>=22.0.0",
+    "ruff>=0.1.0",
 ]
 
 [project.urls]
