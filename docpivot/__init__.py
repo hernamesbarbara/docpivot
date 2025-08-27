@@ -34,26 +34,22 @@ from docpivot.io.plugins import FormatPlugin
 __all__ = [
     # High-level API functions (primary interface)
     "load_document",
-    "load_and_serialize", 
+    "load_and_serialize",
     "convert_document",
-    
     # Core classes for advanced usage
     "BaseReader",
     "SerializerProvider",
-    
     # Specific readers and serializers from PRD
     "DoclingJsonReader",
-    "LexicalJsonReader", 
+    "LexicalJsonReader",
     "LexicalDocSerializer",
-    
     # Extensibility API (main interface for custom formats)
     "get_extensibility_manager",
     "register_format",
-    "load_plugin", 
+    "load_plugin",
     "discover_formats",
     "list_supported_formats",
     "validate_implementation",
-    
     # Base classes for custom format development
     "CustomReaderBase",
     "CustomSerializerBase",

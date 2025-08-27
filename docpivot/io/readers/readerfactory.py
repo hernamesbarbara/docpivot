@@ -19,7 +19,7 @@ class ReaderFactory:
 
     def __init__(self, enable_registry_integration: bool = True):
         """Initialize the ReaderFactory with default readers.
-        
+
         Args:
             enable_registry_integration: Whether to integrate with the format registry
         """
@@ -79,18 +79,19 @@ class ReaderFactory:
                 return reader_class(**kwargs)
         except UnsupportedFormatError:
             pass
-        
+
         # Try format registry
         if self._registry_integration_enabled:
             try:
                 from docpivot.io.format_registry import get_format_registry
+
                 registry = get_format_registry()
                 reader = registry.get_reader_for_file(file_path)
                 if reader is not None:
                     return reader
             except ImportError:
                 pass
-        
+
         # No reader found
         raise UnsupportedFormatError(str(file_path))
 
@@ -138,20 +139,21 @@ class ReaderFactory:
             List[str]: List of supported format names
         """
         formats = list(self._readers.keys())
-        
+
         # Add formats from registry
         if self._registry_integration_enabled:
             try:
                 from docpivot.io.format_registry import get_format_registry
+
                 registry = get_format_registry()
                 registry_formats = registry.list_readable_formats()
-                
+
                 # Merge and deduplicate
                 all_formats = set(formats + registry_formats)
                 return sorted(list(all_formats))
             except ImportError:
                 pass
-        
+
         return sorted(formats)
 
     def is_supported_format(self, file_path: Union[str, Path]) -> bool:
@@ -171,27 +173,28 @@ class ReaderFactory:
             return True
         except UnsupportedFormatError:
             pass
-        
+
         # Check format registry
         if self._registry_integration_enabled:
             try:
                 from docpivot.io.format_registry import get_format_registry
+
                 registry = get_format_registry()
                 reader = registry.get_reader_for_file(file_path)
                 return reader is not None
             except ImportError:
                 pass
-        
+
         return False
-    
+
     def discover_formats(self) -> Dict[str, Dict[str, any]]:
         """Discover all available reading formats and their capabilities.
-        
+
         Returns:
             Dict[str, Dict[str, Any]]: Dictionary mapping format names to capabilities
         """
         formats = {}
-        
+
         # Add local formats
         for format_name, reader_class in self._readers.items():
             formats[format_name] = {
@@ -199,14 +202,15 @@ class ReaderFactory:
                 "source": "builtin",
                 "reader_class": reader_class.__name__,
             }
-        
+
         # Add formats from registry
         if self._registry_integration_enabled:
             try:
                 from docpivot.io.format_registry import get_format_registry
+
                 registry = get_format_registry()
                 registry_formats = registry.discover_formats()
-                
+
                 for format_name, capabilities in registry_formats.items():
                     if capabilities.get("can_read", False):
                         formats[format_name] = {
@@ -215,12 +219,12 @@ class ReaderFactory:
                         }
             except ImportError:
                 pass
-        
+
         return formats
-    
+
     def enable_registry_integration(self, enabled: bool = True) -> None:
         """Enable or disable integration with the format registry.
-        
+
         Args:
             enabled: Whether to enable registry integration
         """

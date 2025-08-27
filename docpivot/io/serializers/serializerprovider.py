@@ -27,7 +27,7 @@ class SerializerProvider:
         "doctags": DocTagsDocSerializer,
         "html": HTMLDocSerializer,
     }
-    
+
     # Integration with format registry
     _registry_integration_enabled = True
 
@@ -68,20 +68,21 @@ class SerializerProvider:
         elif format_key in cls._serializers:
             serializer_cls = cls._serializers[format_key]
             return serializer_cls(doc=doc, **kwargs)  # type: ignore[call-arg]
-        
+
         # Check format registry for extended formats
         if cls._registry_integration_enabled:
             try:
                 from docpivot.io.format_registry import get_format_registry
+
                 registry = get_format_registry()
-                
+
                 serializer_cls = registry.get_serializer_for_format(format_name)
                 if serializer_cls is not None:
                     return serializer_cls(doc=doc, **kwargs)  # type: ignore[call-arg]
             except ImportError:
                 # Format registry not available
                 pass
-        
+
         # Format not found anywhere
         supported_formats = cls.list_formats()
         raise ValueError(
@@ -121,20 +122,21 @@ class SerializerProvider:
             list[str]: List of supported format names.
         """
         formats = list(cls._serializers.keys()) + ["lexical"]
-        
+
         # Add formats from registry
         if cls._registry_integration_enabled:
             try:
                 from docpivot.io.format_registry import get_format_registry
+
                 registry = get_format_registry()
                 registry_formats = registry.list_writable_formats()
-                
+
                 # Merge and deduplicate
                 all_formats = set(formats + registry_formats)
                 return sorted(list(all_formats))
             except ImportError:
                 pass
-        
+
         return sorted(formats)
 
     @classmethod
@@ -150,31 +152,32 @@ class SerializerProvider:
             bool: True if supported, False otherwise.
         """
         format_key = format_name.lower().strip()
-        
+
         # Check built-in formats
         if format_key in cls._serializers or format_key == "lexical":
             return True
-        
+
         # Check format registry
         if cls._registry_integration_enabled:
             try:
                 from docpivot.io.format_registry import get_format_registry
+
                 registry = get_format_registry()
                 return registry.can_write_format(format_name)
             except ImportError:
                 pass
-        
+
         return False
-    
+
     @classmethod
     def discover_formats(cls) -> Dict[str, Dict[str, Any]]:
         """Discover all available serialization formats and their capabilities.
-        
+
         Returns:
             Dict[str, Dict[str, Any]]: Dictionary mapping format names to capabilities
         """
         formats = {}
-        
+
         # Add built-in formats
         for format_name in cls._serializers.keys():
             formats[format_name] = {
@@ -182,21 +185,22 @@ class SerializerProvider:
                 "source": "builtin",
                 "serializer_class": cls._serializers[format_name].__name__,
             }
-        
+
         # Add lexical format
         formats["lexical"] = {
             "name": "lexical",
             "source": "builtin",
             "serializer_class": "LexicalDocSerializer",
         }
-        
+
         # Add formats from registry
         if cls._registry_integration_enabled:
             try:
                 from docpivot.io.format_registry import get_format_registry
+
                 registry = get_format_registry()
                 registry_formats = registry.discover_formats()
-                
+
                 for format_name, capabilities in registry_formats.items():
                     if capabilities.get("can_write", False):
                         formats[format_name] = {
@@ -205,13 +209,13 @@ class SerializerProvider:
                         }
             except ImportError:
                 pass
-        
+
         return formats
-    
+
     @classmethod
     def enable_registry_integration(cls, enabled: bool = True) -> None:
         """Enable or disable integration with the format registry.
-        
+
         Args:
             enabled: Whether to enable registry integration
         """

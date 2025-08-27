@@ -74,7 +74,11 @@ class FormatInfo:
         if self.has_serializer and hasattr(self.serializer_class, "__new__"):
             try:
                 # Create with empty doc for capability inspection
-                from docling_core.types.doc.document import DocumentOrigin, NodeItem, GroupItem
+                from docling_core.types.doc.document import (
+                    DocumentOrigin,
+                    NodeItem,
+                    GroupItem,
+                )
 
                 empty_doc = DoclingDocument(
                     name="",
