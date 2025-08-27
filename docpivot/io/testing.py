@@ -324,6 +324,10 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
         Returns:
             DoclingDocument: Simple test document
         """
+        from docling_core.types.doc import RefItem
+        
+        ref_item = RefItem(cref="#/main-text/0", **{"$ref": "#/main-text/0"})
+        
         return DoclingDocument(
             name="test_document",
             origin=DocumentOrigin(
@@ -332,7 +336,19 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
                 filename="test.txt",
             ),
             furniture=[],
-            body=NodeItem(children=[TextItem(text="This is a simple test document.")]),
+            body=NodeItem(
+                self_ref=ref_item,
+                label="root",
+                orig="#/main-text/0",
+                children=[
+                    TextItem(
+                        text="This is a simple test document.",
+                        self_ref=ref_item,
+                        label="text",
+                        orig="#/main-text/0"
+                    )
+                ]
+            ),
         )
 
     def _create_structured_document(self) -> DoclingDocument:
@@ -341,6 +357,13 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
         Returns:
             DoclingDocument: Structured test document
         """
+        from docling_core.types.doc import RefItem
+        
+        ref_item = RefItem(cref="#/main-text/0", **{"$ref": "#/main-text/0"})
+        ref_item_s1 = RefItem(cref="#/main-text/1", **{"$ref": "#/main-text/1"})
+        ref_item_s11 = RefItem(cref="#/main-text/1/1", **{"$ref": "#/main-text/1/1"})
+        ref_item_s2 = RefItem(cref="#/main-text/2", **{"$ref": "#/main-text/2"})
+        
         return DoclingDocument(
             name="structured_document",
             origin=DocumentOrigin(
@@ -350,20 +373,48 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
             ),
             furniture=[],
             body=NodeItem(
+                self_ref=ref_item,
+                label="root",
+                orig="#/main-text/0",
                 children=[
                     NodeItem(
+                        self_ref=ref_item_s1,
                         label="Section 1",
+                        orig="#/main-text/1",
                         children=[
-                            TextItem(text="Content of section 1"),
+                            TextItem(
+                                text="Content of section 1",
+                                self_ref=ref_item_s1,
+                                label="text",
+                                orig="#/main-text/1"
+                            ),
                             NodeItem(
+                                self_ref=ref_item_s11,
                                 label="Subsection 1.1",
-                                children=[TextItem(text="Content of subsection 1.1")],
+                                orig="#/main-text/1/1",
+                                children=[
+                                    TextItem(
+                                        text="Content of subsection 1.1",
+                                        self_ref=ref_item_s11,
+                                        label="text",
+                                        orig="#/main-text/1/1"
+                                    )
+                                ],
                             ),
                         ],
                     ),
                     NodeItem(
+                        self_ref=ref_item_s2,
                         label="Section 2",
-                        children=[TextItem(text="Content of section 2")],
+                        orig="#/main-text/2",
+                        children=[
+                            TextItem(
+                                text="Content of section 2",
+                                self_ref=ref_item_s2,
+                                label="text",
+                                orig="#/main-text/2"
+                            )
+                        ],
                     ),
                 ]
             ),
@@ -375,6 +426,10 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
         Returns:
             DoclingDocument: Empty test document
         """
+        from docling_core.types.doc import RefItem
+        
+        ref_item = RefItem(cref="#/main-text/0", **{"$ref": "#/main-text/0"})
+        
         return DoclingDocument(
             name="empty_document",
             origin=DocumentOrigin(
@@ -383,7 +438,11 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
                 filename="empty.txt",
             ),
             furniture=[],
-            body=NodeItem(),
+            body=NodeItem(
+                self_ref=ref_item,
+                label="root",
+                orig="#/main-text/0"
+            ),
         )
 
 
@@ -577,6 +636,10 @@ class FormatTestSuite:
 
     def _create_simple_document(self) -> DoclingDocument:
         """Create a simple test document."""
+        from docling_core.types.doc import RefItem
+        
+        ref_item = RefItem(cref="#/main-text/0", **{"$ref": "#/main-text/0"})
+        
         return DoclingDocument(
             name="test",
             origin=DocumentOrigin(
@@ -585,16 +648,36 @@ class FormatTestSuite:
                 filename="",
             ),
             furniture=[],
-            body=NodeItem(children=[TextItem(text="Test content")]),
+            body=NodeItem(
+                self_ref=ref_item,
+                label="root",
+                orig="#/main-text/0",
+                children=[
+                    TextItem(
+                        text="Test content",
+                        self_ref=ref_item,
+                        label="text",
+                        orig="#/main-text/0"
+                    )
+                ]
+            ),
         )
 
     def _create_empty_document(self) -> DoclingDocument:
         """Create an empty test document."""
+        from docling_core.types.doc import RefItem
+        
+        ref_item = RefItem(cref="#/main-text/0", **{"$ref": "#/main-text/0"})
+        
         return DoclingDocument(
             name="empty",
             origin=DocumentOrigin(mimetype="", binary_hash="", filename=""),
             furniture=[],
-            body=NodeItem(),
+            body=NodeItem(
+                self_ref=ref_item,
+                label="root",
+                orig="#/main-text/0"
+            ),
         )
 
     def generate_report(self, results: Dict[str, Any]) -> str:
