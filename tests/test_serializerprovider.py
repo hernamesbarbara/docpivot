@@ -1,6 +1,7 @@
 """Tests for SerializerProvider class."""
 
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 import pytest
 from docling_core.transforms.serializer.common import BaseDocSerializer
@@ -16,6 +17,7 @@ from docling_core.transforms.serializer.markdown import (
 from docling_core.types import DoclingDocument
 
 from docpivot.io.serializers import SerializerProvider
+from docpivot.io.serializers.lexicaldocserializer import LexicalDocSerializer
 
 
 class TestSerializerProvider:
@@ -351,3 +353,160 @@ class TestSerializerProviderIntegration:
         assert len(result.text.strip()) > 0
         # Should contain HTML structure
         assert "<" in result.text and ">" in result.text
+    
+    def test_get_serializer_lexical_format(
+        self, sample_docling_document: DoclingDocument
+    ) -> None:
+        """Test get_serializer returns LexicalDocSerializer for lexical format."""
+        serializer = SerializerProvider.get_serializer(
+            "lexical", sample_docling_document
+        )
+        
+        assert isinstance(serializer, LexicalDocSerializer)
+    
+    def test_get_lexical_serializer_method(self) -> None:
+        """Test _get_lexical_serializer imports and returns the class."""
+        lexical_cls = SerializerProvider._get_lexical_serializer()
+        assert lexical_cls == LexicalDocSerializer
+    
+    def test_get_serializer_with_registry_fallback(
+        self, sample_docling_document: DoclingDocument
+    ) -> None:
+        """Test get_serializer uses format registry when format not in built-in."""
+        # Create a mock registry
+        mock_registry = MagicMock()
+        mock_serializer_cls = MagicMock(spec=BaseDocSerializer)
+        mock_registry.get_serializer_for_format.return_value = mock_serializer_cls
+        
+        with patch('docpivot.io.format_registry.get_format_registry', return_value=mock_registry):
+            serializer = SerializerProvider.get_serializer(
+                "custom_format", sample_docling_document
+            )
+            
+            mock_registry.get_serializer_for_format.assert_called_once_with("custom_format")
+            mock_serializer_cls.assert_called_once_with(doc=sample_docling_document)
+    
+    def test_get_serializer_registry_import_error(
+        self, sample_docling_document: DoclingDocument
+    ) -> None:
+        """Test get_serializer handles ImportError for format registry gracefully."""
+        with patch('docpivot.io.format_registry.get_format_registry', side_effect=ImportError):
+            with pytest.raises(ValueError, match="Unsupported format 'custom_format'"):
+                SerializerProvider.get_serializer("custom_format", sample_docling_document)
+    
+    def test_list_formats_with_registry_import_error(self) -> None:
+        """Test list_formats handles ImportError for format registry gracefully."""
+        with patch('docpivot.io.format_registry.get_format_registry', side_effect=ImportError):
+            formats = SerializerProvider.list_formats()
+            
+            # Should still return built-in formats
+            assert "markdown" in formats
+            assert "lexical" in formats
+            assert "html" in formats
+            assert "doctags" in formats
+    
+    def test_is_format_supported_with_registry_import_error(self) -> None:
+        """Test is_format_supported handles ImportError for format registry gracefully."""
+        with patch('docpivot.io.format_registry.get_format_registry', side_effect=ImportError):
+            # Built-in formats should still work
+            assert SerializerProvider.is_format_supported("markdown") is True
+            assert SerializerProvider.is_format_supported("lexical") is True
+            
+            # Unknown format should return False
+            assert SerializerProvider.is_format_supported("custom_format") is False
+    
+    def test_discover_formats(self) -> None:
+        """Test discover_formats returns all available formats with capabilities."""
+        formats = SerializerProvider.discover_formats()
+        
+        assert isinstance(formats, dict)
+        assert "markdown" in formats
+        assert "lexical" in formats
+        assert "html" in formats
+        assert "doctags" in formats
+        
+        # Check format structure
+        markdown_info = formats["markdown"]
+        assert "source" in markdown_info
+        # The structure depends on whether it's from builtin or registry
+        if markdown_info["source"] == "builtin":
+            assert "name" in markdown_info
+            assert "serializer_class" in markdown_info
+            assert markdown_info["serializer_class"] == "MarkdownDocSerializer"
+        else:
+            assert "format_name" in markdown_info
+        
+        # Check lexical format
+        lexical_info = formats["lexical"]
+        assert "source" in lexical_info
+        # Lexical could be from builtin or registry depending on initialization order
+        if lexical_info["source"] == "builtin":
+            assert lexical_info["serializer_class"] == "LexicalDocSerializer"
+    
+    def test_discover_formats_with_registry(self) -> None:
+        """Test discover_formats includes formats from registry."""
+        mock_registry = MagicMock()
+        mock_registry.discover_formats.return_value = {
+            "custom": {
+                "can_write": True,
+                "format_name": "custom",
+                "file_extension": ".custom"
+            }
+        }
+        
+        with patch('docpivot.io.format_registry.get_format_registry', return_value=mock_registry):
+            formats = SerializerProvider.discover_formats()
+            
+            assert "custom" in formats
+            assert formats["custom"]["source"] == "registry"
+            assert formats["custom"]["can_write"] is True
+    
+    def test_discover_formats_with_registry_import_error(self) -> None:
+        """Test discover_formats handles ImportError for format registry gracefully."""
+        with patch('docpivot.io.format_registry.get_format_registry', side_effect=ImportError):
+            formats = SerializerProvider.discover_formats()
+            
+            # Should still return built-in formats
+            assert "markdown" in formats
+            assert "lexical" in formats
+            assert len(formats) >= 5  # At least 5 built-in formats
+    
+    def test_enable_registry_integration(self) -> None:
+        """Test enable_registry_integration toggles registry usage."""
+        # Save original state
+        original_state = SerializerProvider._registry_integration_enabled
+        
+        try:
+            # Disable registry integration
+            SerializerProvider.enable_registry_integration(False)
+            assert SerializerProvider._registry_integration_enabled is False
+            
+            # Re-enable registry integration
+            SerializerProvider.enable_registry_integration(True)
+            assert SerializerProvider._registry_integration_enabled is True
+            
+            # Test default (True)
+            SerializerProvider.enable_registry_integration()
+            assert SerializerProvider._registry_integration_enabled is True
+        finally:
+            # Restore original state
+            SerializerProvider._registry_integration_enabled = original_state
+    
+    def test_registry_integration_disabled(
+        self, sample_docling_document: DoclingDocument
+    ) -> None:
+        """Test that registry is not consulted when integration is disabled."""
+        original_state = SerializerProvider._registry_integration_enabled
+        
+        try:
+            SerializerProvider.enable_registry_integration(False)
+            
+            # Registry should not be called even for unknown format
+            with patch('docpivot.io.format_registry.get_format_registry') as mock_get_registry:
+                with pytest.raises(ValueError, match="Unsupported format"):
+                    SerializerProvider.get_serializer("unknown", sample_docling_document)
+                
+                # Registry should not have been called
+                mock_get_registry.assert_not_called()
+        finally:
+            SerializerProvider._registry_integration_enabled = original_state

@@ -193,19 +193,10 @@ class CustomReaderBase(BaseReader):
             DoclingDocument: Empty document with basic structure
         """
         from docling_core.types import DoclingDocument
-        from docling_core.types.doc import DocumentOrigin, NodeItem
 
-        # Create basic document structure
-        doc = DoclingDocument(
-            name="",
-            origin=DocumentOrigin(
-                mimetype="application/octet-stream",
-                binary_hash="",
-                filename="",
-            ),
-            furniture=[],
-            body=NodeItem(),
-        )
+        # Create basic document structure with minimal required fields
+        # DoclingDocument will handle creating the proper internal structure
+        doc = DoclingDocument(name="")
 
         return doc
 
