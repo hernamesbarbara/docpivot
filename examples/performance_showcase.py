@@ -14,12 +14,10 @@ implemented in DocPivot, including:
 Run this showcase to see performance optimizations in action.
 """
 
-import asyncio
 import json
 import time
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Dict, Any
+from typing import List
 
 # DocPivot performance imports
 from docpivot.performance import (
@@ -98,7 +96,10 @@ def create_sample_documents() -> List[Path]:
             })
         else:
             medium_texts.append({
-                "text": f"This is paragraph {i} with some detailed content about performance optimization in document processing systems. It includes technical details and examples. Visit https://example.com/docs for more information.",
+                "text": f"This is paragraph {i} with some detailed content about "
+                f"performance optimization in document processing systems. "
+                f"It includes technical details and examples. "
+                f"Visit https://example.com/docs for more information.",
                 "label": "paragraph"
             })
         medium_children.append({"cref": f"#/texts/{i}"})
@@ -169,7 +170,14 @@ def create_sample_documents() -> List[Path]:
             })
         else:
             large_texts.append({
-                "text": f"Paragraph {i}: This is a detailed paragraph about performance optimization techniques in document processing systems. It covers advanced topics such as memory management, streaming processing, parallel execution, and caching strategies. The content is designed to create a substantial document for performance testing purposes. Additional technical information includes details about JSON parsing, data structures, serialization formats, and system resource utilization patterns.",
+                "text": f"Paragraph {i}: This is a detailed paragraph about performance "
+                f"optimization techniques in document processing systems. It covers "
+                f"advanced topics such as memory management, streaming processing, "
+                f"parallel execution, and caching strategies. The content is designed "
+                f"to create a substantial document for performance testing purposes. "
+                f"Additional technical information includes details about JSON parsing, "
+                f"data structures, serialization formats, and system resource "
+                f"utilization patterns.",
                 "label": "paragraph"
             })
         large_children.append({"cref": f"#/texts/{i}"})

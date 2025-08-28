@@ -1,13 +1,11 @@
 """LexicalDocSerializer for converting DoclingDocument to Lexical JSON format."""
 
 import json
-import logging
 import time
 import gc
-from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, Protocol, Callable, Generator
+from typing import Any, Dict, List, Optional, Union, Protocol, Generator
 from pydantic.networks import AnyUrl
 
 from docling_core.transforms.serializer.base import SerializationResult
@@ -31,7 +29,7 @@ from docpivot.io.readers.exceptions import (
     TransformationError,
     ConfigurationError,
 )
-from docpivot.validation import validate_docling_document, parameter_validator
+from docpivot.validation import validate_docling_document
 from docpivot.logging_config import (
     get_logger,
     PerformanceLogger,
@@ -111,7 +109,7 @@ class LexicalParams:
         version: Lexical format version to use
         custom_root_attributes: Additional attributes to add to root node
         skip_validation: Whether to skip DoclingDocument validation (for testing)
-        
+
         Performance optimization options:
         enable_streaming: Force streaming mode (None for auto-detect)
         batch_size: Elements per batch for streaming processing
@@ -131,11 +129,11 @@ class LexicalParams:
     version: int = LEXICAL_VERSION
     custom_root_attributes: Optional[Dict[str, Any]] = field(default_factory=dict)
     skip_validation: bool = False
-    
+
     # Performance optimization options
     enable_streaming: Optional[bool] = None  # None for auto-detect
     batch_size: int = 1000  # Elements per batch
-    streaming_threshold_elements: int = 5000  # Use streaming for docs with >5000 elements
+    streaming_threshold_elements: int = 5000  # Use streaming for docs >5000 elements
     use_fast_json: bool = True  # Use fast JSON libraries when available
     parallel_processing: bool = False  # Use parallel processing for large docs
     max_workers: int = 4  # Worker threads for parallel processing
@@ -215,7 +213,7 @@ class LexicalDocSerializer(BaseDocSerializer):
     Note: This serializer does NOT extend BaseDocSerializer because it has fundamentally
     different requirements:
     - BaseDocSerializer is designed for text-based serializers with inline formatting
-    - LexicalDocSerializer converts entire document structure to JSON format
+    - LexicalDocSerializer converts entire document structure to JSON forma
     - The APIs are incompatible (different serialize() method signatures and patterns)
     """
 
@@ -245,7 +243,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         self.image_serializer = image_serializer or ImageSerializer()
         self.table_serializer = table_serializer
         self.performance_config = performance_config or PerformanceConfig()
-        
+
         # Performance optimization state (with safeguards for invalid params)
         try:
             self._json_encoder = self._select_json_encoder()
@@ -296,7 +294,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         """Serialize the DoclingDocument to Lexical JSON format.
 
         Returns:
-            SerializationResult: The serialization result with Lexical JSON in .text
+            SerializationResult: The serialization result with Lexical JSON in .tex
 
         Raises:
             ValidationError: If the document structure is invalid
@@ -359,7 +357,9 @@ class LexicalDocSerializer(BaseDocSerializer):
                 },
             )
 
-            logger.info(f"Lexical serialization complete: {duration:.2f}ms, {len(json_text)} chars")
+            logger.info(
+                f"Lexical serialization complete: {duration:.2f}ms, {len(json_text)} chars"
+            )
 
             # Final progress update
             if self.params.progress_callback:
@@ -373,7 +373,7 @@ class LexicalDocSerializer(BaseDocSerializer):
             logger.error(f"Lexical serialization failed after {duration:.2f}ms")
             raise
         except Exception as e:
-            # Handle unexpected errors with comprehensive context
+            # Handle unexpected errors with comprehensive contex
             duration = (time.time() - self._start_time) * 1000
             context = {
                 "operation": "serialize",
@@ -451,17 +451,19 @@ class LexicalDocSerializer(BaseDocSerializer):
         Raises:
             ConfigurationError: If parameters are invalid
         """
-        # Validate params object
+        # Validate params objec
         if not isinstance(self.params, LexicalParams):
             raise ConfigurationError(
-                f"Invalid serializer parameters: expected LexicalParams, got {type(self.params).__name__}",
+                f"Invalid serializer parameters: expected LexicalParams, "
+                f"got {type(self.params).__name__}",
                 context={"actual_type": type(self.params).__name__},
             )
 
         # Validate version parameter
         if not isinstance(self.params.version, int) or self.params.version < 1:
             raise ConfigurationError(
-                f"Invalid version parameter: {self.params.version}. Version must be a positive integer.",
+                f"Invalid version parameter: {self.params.version}. "
+                f"Version must be a positive integer.",
                 invalid_parameters=["version"],
                 valid_options={"version": ["Any positive integer"]},
                 context={"provided_version": self.params.version},
@@ -469,7 +471,7 @@ class LexicalDocSerializer(BaseDocSerializer):
 
         # Validate boolean parameters
         bool_params = [
-            "include_metadata", "preserve_formatting", "indent_json", 
+            "include_metadata", "preserve_formatting", "indent_json",
             "use_fast_json", "parallel_processing", "memory_efficient_mode",
             "cache_node_creation", "optimize_text_formatting", "skip_validation"
         ]
@@ -477,7 +479,8 @@ class LexicalDocSerializer(BaseDocSerializer):
             param_value = getattr(self.params, param_name, None)
             if param_value is not None and not isinstance(param_value, bool):
                 raise ConfigurationError(
-                    f"Invalid {param_name} parameter: {param_value}. Must be a boolean value.",
+                    f"Invalid {param_name} parameter: {param_value}. "
+                    f"Must be a boolean value.",
                     invalid_parameters=[param_name],
                     valid_options={param_name: ["true", "false"]},
                     context={f"provided_{param_name}": param_value},
@@ -490,7 +493,7 @@ class LexicalDocSerializer(BaseDocSerializer):
                 invalid_parameters=["batch_size"],
             )
 
-        # Validate worker count
+        # Validate worker coun
         if self.params.max_workers <= 0:
             raise ConfigurationError(
                 f"Invalid max_workers: {self.params.max_workers}. Must be positive.",
@@ -500,7 +503,8 @@ class LexicalDocSerializer(BaseDocSerializer):
         # Validate streaming threshold
         if self.params.streaming_threshold_elements <= 0:
             raise ConfigurationError(
-                f"Invalid streaming_threshold_elements: {self.params.streaming_threshold_elements}. Must be positive.",
+                f"Invalid streaming_threshold_elements: "
+                f"{self.params.streaming_threshold_elements}. Must be positive.",
                 invalid_parameters=["streaming_threshold_elements"],
             )
 
@@ -508,7 +512,8 @@ class LexicalDocSerializer(BaseDocSerializer):
         if self.params.custom_root_attributes is not None:
             if not isinstance(self.params.custom_root_attributes, dict):
                 raise ConfigurationError(
-                    f"Invalid custom_root_attributes: must be a dictionary, got {type(self.params.custom_root_attributes).__name__}",
+                    f"Invalid custom_root_attributes: must be a dictionary, "
+                    f"got {type(self.params.custom_root_attributes).__name__}",
                     invalid_parameters=["custom_root_attributes"],
                     context={
                         "actual_type": type(self.params.custom_root_attributes).__name__
@@ -531,30 +536,30 @@ class LexicalDocSerializer(BaseDocSerializer):
             ) from e
 
     def _transform_docling_to_lexical_parallel(self) -> Dict[str, Any]:
-        """Transform DoclingDocument to Lexical JSON structure using parallel processing."""
+        """Transform DoclingDocument to Lexical JSON structure using parallel."""
         logger.debug("Starting parallel DoclingDocument to Lexical transformation")
         try:
             from concurrent.futures import ThreadPoolExecutor, as_completed
-            
+
             # Split body children into chunks
             chunks = self._split_body_children_into_chunks()
-            
+
             # Process chunks in parallel
             with ThreadPoolExecutor(max_workers=self.params.max_workers) as executor:
                 futures = [
                     executor.submit(self._process_body_children_chunk, chunk)
                     for chunk in chunks
                 ]
-                
+
                 lexical_children = []
                 for future in as_completed(futures):
                     chunk_result = future.result()
                     lexical_children.extend(chunk_result)
-            
+
             # Update progress
             if self.params.progress_callback:
                 self.params.progress_callback(0.8)
-            
+
             return self._build_final_structure(lexical_children)
         except Exception as e:
             raise TransformationError(
@@ -603,7 +608,8 @@ class LexicalDocSerializer(BaseDocSerializer):
             # Handle any unexpected errors during transformation
             logger.error(f"Unexpected error during Lexical transformation: {e}")
             raise TransformationError(
-                f"Unexpected error during DoclingDocument to Lexical transformation: {e}",
+                f"Unexpected error during DoclingDocument to Lexical "
+                f"transformation: {e}",
                 transformation_type="docling_to_lexical",
                 recovery_suggestions=[
                     "Check the document structure for validity",
@@ -614,7 +620,9 @@ class LexicalDocSerializer(BaseDocSerializer):
                 cause=e,
             ) from e
 
-    def _build_final_structure(self, lexical_children: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _build_final_structure(
+        self, lexical_children: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """Build final Lexical structure with metadata."""
         # Create the root Lexical structure
         root_node = {
@@ -750,7 +758,7 @@ class LexicalDocSerializer(BaseDocSerializer):
                         progress = min(0.7, i / len(self.doc.body.children) * 0.7)
                         self.params.progress_callback(progress)
 
-                    # Force garbage collection for memory management
+                    # Force garbage collection for memory managemen
                     if self.params.memory_efficient_mode:
                         gc.collect()
 
@@ -963,7 +971,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         """Create a Lexical text node with formatting.
 
         Args:
-            text_content: The text content
+            text_content: The text conten
             format_types: List of format types to apply
 
         Returns:
@@ -1009,7 +1017,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         # URL pattern to detect links
         url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+' r'|www\.[^\s<>"{}|\\^`\[\]]+'
 
-        # Find all URLs in the text
+        # Find all URLs in the tex
         urls = list(re.finditer(url_pattern, text_content))
 
         if not urls:
@@ -1024,7 +1032,7 @@ class LexicalDocSerializer(BaseDocSerializer):
             # Add text before the URL as a regular text node
             if url_match.start() > last_end:
                 before_text = text_content[last_end : url_match.start()]
-                if before_text.strip():  # Only add non-empty text
+                if before_text.strip():  # Only add non-empty tex
                     format_types = self._detect_text_formatting(before_text, text_item)
                     nodes.append(
                         self._create_formatted_text_node(before_text, format_types)
@@ -1044,7 +1052,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         # Add any remaining text after the last URL
         if last_end < len(text_content):
             after_text = text_content[last_end:]
-            if after_text.strip():  # Only add non-empty text
+            if after_text.strip():  # Only add non-empty tex
                 format_types = self._detect_text_formatting(after_text, text_item)
                 nodes.append(self._create_formatted_text_node(after_text, format_types))
 
@@ -1054,7 +1062,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         """Create a Lexical link node.
 
         Args:
-            text_content: The link text
+            text_content: The link tex
             url: The link URL
 
         Returns:
@@ -1091,7 +1099,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         """Create a Lexical node from a DoclingDocument TextItem.
 
         Args:
-            text_item: The TextItem to convert
+            text_item: The TextItem to conver
 
         Returns:
             Lexical node dictionary or None if conversion fails
@@ -1100,7 +1108,7 @@ class LexicalDocSerializer(BaseDocSerializer):
 
     def _create_heading_node_optimized(self, text_item: SectionHeaderItem) -> Dict[str, Any]:
         """Create optimized heading node."""
-        # Check cache first
+        # Check cache firs
         if self._node_cache is not None:
             cache_key = f"heading_{text_item.text}_{getattr(text_item, 'level', 1)}"
             if cache_key in self._node_cache:
@@ -1127,7 +1135,7 @@ class LexicalDocSerializer(BaseDocSerializer):
                 "version": self.params.version,
             }
 
-            # Cache result
+            # Cache resul
             if self._node_cache is not None:
                 cache_key = f"heading_{text_item.text}_{level}"
                 self._node_cache[cache_key] = node.copy()
@@ -1391,7 +1399,7 @@ class LexicalDocSerializer(BaseDocSerializer):
             nodes.append(self._create_link_node_optimized(url_match.group(), url))
             last_end = url_match.end()
 
-        # Add remaining text
+        # Add remaining tex
         if last_end < len(text_content):
             after_text = text_content[last_end:]
             if after_text.strip():
@@ -1490,7 +1498,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         """Create a Lexical table node from a TableItem.
 
         Args:
-            table_item: The TableItem to convert
+            table_item: The TableItem to conver
 
         Returns:
             Lexical table node
@@ -1501,7 +1509,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         """Create a Lexical list node from a GroupItem.
 
         Args:
-            group_item: The GroupItem to convert
+            group_item: The GroupItem to conver
 
         Returns:
             Lexical list node
@@ -1512,11 +1520,11 @@ class LexicalDocSerializer(BaseDocSerializer):
     def get_excluded_refs(self, **kwargs: Any) -> set[str]:
         """Get set of item references that should be excluded from serialization.
 
-        For Lexical format, we don't exclude any references as the format
+        For Lexical format, we don't exclude any references as the forma
         handles all content types in the JSON structure.
 
         Returns:
-            Empty set - no exclusions for Lexical format
+            Empty set - no exclusions for Lexical forma
         """
         return set()
 
@@ -1533,7 +1541,7 @@ class LexicalDocSerializer(BaseDocSerializer):
             **kwargs: Additional parameters
 
         Returns:
-            List containing the complete serialization result
+            List containing the complete serialization resul
         """
         if item is None:
             # Return the complete document serialization
@@ -1549,13 +1557,13 @@ class LexicalDocSerializer(BaseDocSerializer):
         is already properly formatted.
 
         Args:
-            text: The serialized text
+            text: The serialized tex
             **kwargs: Additional parameters
 
         Returns:
             The text unchanged
         """
-        return text
+        return tex
 
     def requires_page_break(self) -> bool:
         """Check if this serializer requires page breaks.
@@ -1581,24 +1589,24 @@ class LexicalDocSerializer(BaseDocSerializer):
             **kwargs: Additional parameters
 
         Returns:
-            Empty serialization result
+            Empty serialization resul
         """
         return SerializationResult(text="")
 
     def serialize_bold(self, text: str, **kwargs: Any) -> str:
         """Serialize bold text formatting.
 
-        For Lexical format, bold formatting is handled through the format
+        For Lexical format, bold formatting is handled through the forma
         bitmask in the JSON structure, not as text markup.
 
         Args:
-            text: The text to format
+            text: The text to forma
             **kwargs: Additional parameters
 
         Returns:
             The text unchanged (formatting handled in JSON structure)
         """
-        return text
+        return tex
 
     def get_performance_stats(self) -> Dict[str, Any]:
         """Get current performance statistics."""
@@ -1635,7 +1643,7 @@ class LexicalDocSerializer(BaseDocSerializer):
             **kwargs: Additional parameters
 
         Returns:
-            Empty serialization result
+            Empty serialization resul
         """
         return SerializationResult(text="")
 
@@ -1648,86 +1656,86 @@ class LexicalDocSerializer(BaseDocSerializer):
         nodes in the JSON structure, not as text markup.
 
         Args:
-            text: The link text
+            text: The link tex
             hyperlink: The link URL or path
             **kwargs: Additional parameters
 
         Returns:
             The text unchanged (links handled in JSON structure)
         """
-        return text
+        return tex
 
     def serialize_italic(self, text: str, **kwargs: Any) -> str:
         """Serialize italic text formatting.
 
-        For Lexical format, italic formatting is handled through the format
+        For Lexical format, italic formatting is handled through the forma
         bitmask in the JSON structure, not as text markup.
 
         Args:
-            text: The text to format
+            text: The text to forma
             **kwargs: Additional parameters
 
         Returns:
             The text unchanged (formatting handled in JSON structure)
         """
-        return text
+        return tex
 
     def serialize_strikethrough(self, text: str, **kwargs: Any) -> str:
         """Serialize strikethrough text formatting.
 
-        For Lexical format, strikethrough formatting is handled through the format
+        For Lexical format, strikethrough formatting is handled through the forma
         bitmask in the JSON structure, not as text markup.
 
         Args:
-            text: The text to format
+            text: The text to forma
             **kwargs: Additional parameters
 
         Returns:
             The text unchanged (formatting handled in JSON structure)
         """
-        return text
+        return tex
 
     def serialize_subscript(self, text: str, **kwargs: Any) -> str:
         """Serialize subscript text formatting.
 
-        For Lexical format, subscript formatting would be handled through the format
+        For Lexical format, subscript formatting would be handled through the forma
         bitmask in the JSON structure, not as text markup.
 
         Args:
-            text: The text to format
+            text: The text to forma
             **kwargs: Additional parameters
 
         Returns:
             The text unchanged (formatting handled in JSON structure)
         """
-        return text
+        return tex
 
     def serialize_superscript(self, text: str, **kwargs: Any) -> str:
         """Serialize superscript text formatting.
 
-        For Lexical format, superscript formatting would be handled through the format
+        For Lexical format, superscript formatting would be handled through the forma
         bitmask in the JSON structure, not as text markup.
 
         Args:
-            text: The text to format
+            text: The text to forma
             **kwargs: Additional parameters
 
         Returns:
             The text unchanged (formatting handled in JSON structure)
         """
-        return text
+        return tex
 
     def serialize_underline(self, text: str, **kwargs: Any) -> str:
         """Serialize underline text formatting.
 
-        For Lexical format, underline formatting is handled through the format
+        For Lexical format, underline formatting is handled through the forma
         bitmask in the JSON structure, not as text markup.
 
         Args:
-            text: The text to format
+            text: The text to forma
             **kwargs: Additional parameters
 
         Returns:
             The text unchanged (formatting handled in JSON structure)
         """
-        return text
+        return tex
