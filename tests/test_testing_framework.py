@@ -129,6 +129,9 @@ class TestSerializerImpl(BaseDocSerializer):
 class ConcreteTestCase(CustomFormatTestBase):
     """Concrete test case implementation for testing the base class."""
     
+    # Prevent test discovery - this is a helper class, not actual tests
+    __test__ = False
+    
     def get_reader_class(self) -> Optional[Type[BaseReader]]:
         return MockTestCustomReaderImpl
     

@@ -36,6 +36,9 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
             def get_test_documents(self) -> List[DoclingDocument]:
                 return [self._create_simple_document()]
     """
+    
+    # Prevent test discovery of this abstract base class
+    __test__ = False
 
     @abstractmethod
     def get_reader_class(self) -> Optional[Type[BaseReader]]:

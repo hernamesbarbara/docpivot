@@ -3,9 +3,11 @@
 import json
 import logging
 import time
+import gc
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, Protocol
+from typing import Any, Dict, List, Optional, Union, Protocol, Callable, Generator
 from pydantic.networks import AnyUrl
 
 from docling_core.transforms.serializer.base import SerializationResult
@@ -35,6 +37,7 @@ from docpivot.logging_config import (
     PerformanceLogger,
     log_exception_with_context,
 )
+from docpivot.performance import PerformanceConfig
 
 logger = get_logger(__name__)
 perf_logger = PerformanceLogger(logger)
@@ -108,6 +111,18 @@ class LexicalParams:
         version: Lexical format version to use
         custom_root_attributes: Additional attributes to add to root node
         skip_validation: Whether to skip DoclingDocument validation (for testing)
+        
+        Performance optimization options:
+        enable_streaming: Force streaming mode (None for auto-detect)
+        batch_size: Elements per batch for streaming processing
+        streaming_threshold_elements: Auto-activate streaming above this count
+        use_fast_json: Use fast JSON libraries (orjson, ujson) when available
+        parallel_processing: Use parallel processing for large documents
+        max_workers: Worker threads for parallel processing
+        memory_efficient_mode: Reduce memory usage with batching and GC
+        cache_node_creation: Cache frequently created nodes
+        optimize_text_formatting: Use optimized text processing methods
+        progress_callback: Callback function for progress updates (0.0-1.0)
     """
 
     include_metadata: bool = True
@@ -116,6 +131,18 @@ class LexicalParams:
     version: int = LEXICAL_VERSION
     custom_root_attributes: Optional[Dict[str, Any]] = field(default_factory=dict)
     skip_validation: bool = False
+    
+    # Performance optimization options
+    enable_streaming: Optional[bool] = None  # None for auto-detect
+    batch_size: int = 1000  # Elements per batch
+    streaming_threshold_elements: int = 5000  # Use streaming for docs with >5000 elements
+    use_fast_json: bool = True  # Use fast JSON libraries when available
+    parallel_processing: bool = False  # Use parallel processing for large docs
+    max_workers: int = 4  # Worker threads for parallel processing
+    memory_efficient_mode: bool = False  # Reduce memory usage
+    cache_node_creation: bool = False  # Cache frequently created nodes
+    optimize_text_formatting: bool = True  # Use optimized text processing
+    progress_callback: Optional[Any] = None  # Progress callback function
 
 
 class ComponentSerializer(Protocol):
@@ -198,6 +225,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         params: Optional[LexicalParams] = None,
         image_serializer: Optional[ComponentSerializer] = None,
         table_serializer: Optional[ComponentSerializer] = None,
+        performance_config: Optional[PerformanceConfig] = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the LexicalDocSerializer.
@@ -207,6 +235,7 @@ class LexicalDocSerializer(BaseDocSerializer):
             params: Optional LexicalParams for configuration
             image_serializer: Optional custom image serializer
             table_serializer: Optional custom table serializer
+            performance_config: Optional PerformanceConfig for performance monitoring
             **kwargs: Additional parameters for extensibility
         """
         super().__init__()
@@ -215,6 +244,53 @@ class LexicalDocSerializer(BaseDocSerializer):
         self.params = params or LexicalParams()
         self.image_serializer = image_serializer or ImageSerializer()
         self.table_serializer = table_serializer
+        self.performance_config = performance_config or PerformanceConfig()
+        
+        # Performance optimization state (with safeguards for invalid params)
+        try:
+            self._json_encoder = self._select_json_encoder()
+            self._node_cache: Optional[Dict[str, Any]] = (
+                {} if getattr(self.params, 'cache_node_creation', False) else None
+            )
+        except AttributeError:
+            # Handle invalid params gracefully - will be caught in validation
+            self._json_encoder = json
+            self._node_cache = None
+        self._elements_processed = 0
+        self._start_time = 0.0
+
+    def _select_json_encoder(self):
+        """Select fastest available JSON encoder."""
+        if not self.params.use_fast_json:
+            return json
+
+        # Try fast JSON libraries in order of preference
+        try:
+            import orjson
+            logger.debug("Using orjson for JSON encoding")
+            return orjson
+        except ImportError:
+            pass
+
+        try:
+            import ujson
+            logger.debug("Using ujson for JSON encoding")
+            return ujson
+        except ImportError:
+            pass
+
+        logger.debug("Using standard json library")
+        return json
+
+    def _count_total_elements(self) -> int:
+        """Count total elements in document for processing strategy selection."""
+        return (
+            len(self.doc.body.children)
+            + len(self.doc.texts)
+            + len(getattr(self.doc, "tables", []))
+            + len(getattr(self.doc, "groups", []))
+            + len(getattr(self.doc, "pictures", []))
+        )
 
     def serialize(self) -> SerializationResult:
         """Serialize the DoclingDocument to Lexical JSON format.
@@ -227,17 +303,15 @@ class LexicalDocSerializer(BaseDocSerializer):
             TransformationError: If conversion to Lexical format fails
             ConfigurationError: If serializer parameters are invalid
         """
-        start_time = time.time()
+        self._start_time = time.time()
         logger.info("Serializing DoclingDocument to Lexical JSON format")
 
         try:
             # Validate input document structure (skip if disabled for testing)
-            # Handle case where params might not be a valid LexicalParams object
             should_validate = True
             try:
                 should_validate = not self.params.skip_validation
             except AttributeError:
-                # If params doesn't have skip_validation, assume we should validate
                 should_validate = True
 
             if should_validate:
@@ -250,70 +324,124 @@ class LexicalDocSerializer(BaseDocSerializer):
             self._validate_serializer_params()
             logger.debug("Serializer parameters validation passed")
 
-            # Transform document structure with error handling
-            lexical_data = self._transform_docling_to_lexical()
-            logger.debug("DoclingDocument transformation to Lexical completed")
+            # Determine processing strategy based on document size and configuration
+            total_elements = self._count_total_elements()
+            use_streaming = self._should_use_streaming(total_elements)
+            use_parallel = self._should_use_parallel_processing(total_elements)
 
-            # Serialize to JSON with error handling
-            try:
-                indent = JSON_INDENT_SIZE if self.params.indent_json else None
-                json_text = json.dumps(lexical_data, indent=indent, ensure_ascii=False)
+            logger.debug(
+                f"Processing {total_elements} elements, streaming: {use_streaming}, parallel: {use_parallel}"
+            )
 
-                # Log performance metrics
-                duration = (time.time() - start_time) * 1000
-                perf_logger.log_operation_time(
-                    "Lexical serialization",
-                    duration,
-                    {
-                        "output_size_chars": len(json_text),
-                        "indent_json": self.params.indent_json,
-                        "include_metadata": self.params.include_metadata,
-                    },
-                )
-                logger.info("Successfully serialized DoclingDocument to Lexical JSON")
+            # Initialize progress tracking
+            if self.params.progress_callback:
+                self.params.progress_callback(0.0)
 
-                return SerializationResult(text=json_text)
+            # Choose serialization strategy
+            if use_streaming:
+                json_text = self._serialize_streaming()
+            elif use_parallel:
+                json_text = self._serialize_parallel()
+            else:
+                json_text = self._serialize_standard()
 
-            except (TypeError, ValueError) as e:
-                raise TransformationError(
-                    f"Failed to serialize Lexical data to JSON: {e}. "
-                    f"The transformed data structure may be invalid.",
-                    transformation_type="lexical_to_json",
-                    recovery_suggestions=[
-                        "Check for circular references in the document structure",
-                        "Verify all data types are JSON-serializable",
-                        "Try with different serializer parameters",
-                    ],
-                    context={"original_error": str(e)},
-                    cause=e,
-                ) from e
+            # Log performance metrics
+            duration = (time.time() - self._start_time) * 1000
+            perf_logger.log_operation_time(
+                "optimized_lexical_serialization",
+                duration,
+                {
+                    "elements_processed": self._elements_processed,
+                    "output_size_chars": len(json_text),
+                    "streaming": use_streaming,
+                    "parallel": use_parallel,
+                    "json_encoder": self._json_encoder.__name__,
+                },
+            )
+
+            logger.info(f"Lexical serialization complete: {duration:.2f}ms, {len(json_text)} chars")
+
+            # Final progress update
+            if self.params.progress_callback:
+                self.params.progress_callback(1.0)
+
+            return SerializationResult(text=json_text)
 
         except (ValidationError, TransformationError, ConfigurationError):
-            # Re-raise our custom exceptions without wrapping
-            duration = (time.time() - start_time) * 1000
-            logger.error(
-                f"Failed to serialize DoclingDocument to Lexical JSON after {duration:.2f}ms"
-            )
+            # Re-raise custom exceptions
+            duration = (time.time() - self._start_time) * 1000
+            logger.error(f"Lexical serialization failed after {duration:.2f}ms")
             raise
         except Exception as e:
             # Handle unexpected errors with comprehensive context
-            duration = (time.time() - start_time) * 1000
+            duration = (time.time() - self._start_time) * 1000
             context = {
                 "operation": "serialize",
                 "duration_ms": duration,
-                "serializer_params": (
-                    self.params.__dict__
-                    if hasattr(self.params, "__dict__")
-                    else str(self.params)
-                ),
+                "elements_processed": self._elements_processed,
             }
             log_exception_with_context(logger, e, "Lexical JSON serialization", context)
 
             raise TransformationError(
-                f"Unexpected error during Lexical JSON serialization: {e}. "
-                f"Please check the document structure and try again.",
-                transformation_type="docling_to_lexical",
+                f"Unexpected error during Lexical JSON serialization: {e}",
+                transformation_type="lexical",
                 context=context,
+                cause=e,
+            ) from e
+
+    def _should_use_streaming(self, total_elements: int) -> bool:
+        """Determine if streaming mode should be used."""
+        if self.params.enable_streaming is not None:
+            return self.params.enable_streaming
+        return total_elements > self.params.streaming_threshold_elements
+
+    def _should_use_parallel_processing(self, total_elements: int) -> bool:
+        """Determine if parallel processing should be used."""
+        return (
+            self.params.parallel_processing
+            and total_elements > 1000
+            and not self._should_use_streaming(total_elements)
+        )
+
+    def _serialize_streaming(self) -> str:
+        """Serialize using streaming approach for large documents."""
+        logger.debug("Using streaming serialization")
+        try:
+            lexical_data = self._transform_docling_to_lexical_streaming()
+            return self._encode_json(lexical_data)
+        except Exception as e:
+            raise TransformationError(
+                f"Streaming serialization failed: {e}",
+                transformation_type="streaming_lexical",
+                context={"elements_processed": self._elements_processed},
+                cause=e,
+            ) from e
+
+    def _serialize_parallel(self) -> str:
+        """Serialize using parallel processing for large documents."""
+        logger.debug("Using parallel serialization")
+        try:
+            lexical_data = self._transform_docling_to_lexical_parallel()
+            return self._encode_json(lexical_data)
+        except Exception as e:
+            raise TransformationError(
+                f"Parallel serialization failed: {e}",
+                transformation_type="parallel_lexical",
+                context={"elements_processed": self._elements_processed},
+                cause=e,
+            ) from e
+
+    def _serialize_standard(self) -> str:
+        """Serialize using standard approach."""
+        logger.debug("Using standard serialization")
+        try:
+            lexical_data = self._transform_docling_to_lexical()
+            return self._encode_json(lexical_data)
+        except Exception as e:
+            raise TransformationError(
+                f"Standard serialization failed: {e}",
+                transformation_type="standard_lexical",
+                context={"elements_processed": self._elements_processed},
                 cause=e,
             ) from e
 
@@ -340,16 +468,41 @@ class LexicalDocSerializer(BaseDocSerializer):
             )
 
         # Validate boolean parameters
-        bool_params = ["include_metadata", "preserve_formatting", "indent_json"]
+        bool_params = [
+            "include_metadata", "preserve_formatting", "indent_json", 
+            "use_fast_json", "parallel_processing", "memory_efficient_mode",
+            "cache_node_creation", "optimize_text_formatting", "skip_validation"
+        ]
         for param_name in bool_params:
-            param_value = getattr(self.params, param_name)
-            if not isinstance(param_value, bool):
+            param_value = getattr(self.params, param_name, None)
+            if param_value is not None and not isinstance(param_value, bool):
                 raise ConfigurationError(
                     f"Invalid {param_name} parameter: {param_value}. Must be a boolean value.",
                     invalid_parameters=[param_name],
                     valid_options={param_name: ["true", "false"]},
                     context={f"provided_{param_name}": param_value},
                 )
+
+        # Validate batch size
+        if self.params.batch_size <= 0:
+            raise ConfigurationError(
+                f"Invalid batch_size: {self.params.batch_size}. Must be positive.",
+                invalid_parameters=["batch_size"],
+            )
+
+        # Validate worker count
+        if self.params.max_workers <= 0:
+            raise ConfigurationError(
+                f"Invalid max_workers: {self.params.max_workers}. Must be positive.",
+                invalid_parameters=["max_workers"],
+            )
+
+        # Validate streaming threshold
+        if self.params.streaming_threshold_elements <= 0:
+            raise ConfigurationError(
+                f"Invalid streaming_threshold_elements: {self.params.streaming_threshold_elements}. Must be positive.",
+                invalid_parameters=["streaming_threshold_elements"],
+            )
 
         # Validate custom root attributes
         if self.params.custom_root_attributes is not None:
@@ -363,6 +516,52 @@ class LexicalDocSerializer(BaseDocSerializer):
                 )
 
         logger.debug("Serializer parameters validation completed successfully")
+
+    def _transform_docling_to_lexical_streaming(self) -> Dict[str, Any]:
+        """Transform DoclingDocument to Lexical JSON structure using streaming."""
+        logger.debug("Starting streaming DoclingDocument to Lexical transformation")
+        try:
+            lexical_children = self._process_body_children_streaming()
+            return self._build_final_structure(list(lexical_children))
+        except Exception as e:
+            raise TransformationError(
+                f"Failed to transform document using streaming: {e}",
+                transformation_type="streaming_transformation",
+                cause=e,
+            ) from e
+
+    def _transform_docling_to_lexical_parallel(self) -> Dict[str, Any]:
+        """Transform DoclingDocument to Lexical JSON structure using parallel processing."""
+        logger.debug("Starting parallel DoclingDocument to Lexical transformation")
+        try:
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            
+            # Split body children into chunks
+            chunks = self._split_body_children_into_chunks()
+            
+            # Process chunks in parallel
+            with ThreadPoolExecutor(max_workers=self.params.max_workers) as executor:
+                futures = [
+                    executor.submit(self._process_body_children_chunk, chunk)
+                    for chunk in chunks
+                ]
+                
+                lexical_children = []
+                for future in as_completed(futures):
+                    chunk_result = future.result()
+                    lexical_children.extend(chunk_result)
+            
+            # Update progress
+            if self.params.progress_callback:
+                self.params.progress_callback(0.8)
+            
+            return self._build_final_structure(lexical_children)
+        except Exception as e:
+            raise TransformationError(
+                f"Failed to transform document using parallel processing: {e}",
+                transformation_type="parallel_transformation",
+                cause=e,
+            ) from e
 
     def _transform_docling_to_lexical(self) -> Dict[str, Any]:
         """Transform DoclingDocument to Lexical JSON structure.
@@ -378,7 +577,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         try:
             # Process body children to create Lexical nodes with error handling
             try:
-                lexical_children = self._process_body_children()
+                lexical_children = self._process_body_children_optimized()
                 logger.debug(f"Processed {len(lexical_children)} body children")
             except Exception as e:
                 raise TransformationError(
@@ -394,64 +593,8 @@ class LexicalDocSerializer(BaseDocSerializer):
                     cause=e,
                 ) from e
 
-            # Create the root Lexical structure
-            root_node = {
-                "children": lexical_children,
-                "direction": TEXT_DIRECTION_LTR,
-                "format": DEFAULT_STYLE,
-                "indent": DEFAULT_INDENT,
-                "type": NODE_TYPE_ROOT,
-                "version": self.params.version,
-            }
-
-            # Add custom root attributes if provided
-            if self.params.custom_root_attributes:
-                try:
-                    root_node.update(self.params.custom_root_attributes)
-                    logger.debug(
-                        f"Added {len(self.params.custom_root_attributes)} custom root attributes"
-                    )
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to add custom root attributes: {e}. Proceeding without them."
-                    )
-
-            lexical_data = {"root": root_node}
-
-            # Include document metadata if requested
-            if self.params.include_metadata:
-                try:
-                    metadata = {}
-                    if hasattr(self.doc, "name") and self.doc.name:
-                        metadata.update(
-                            {
-                                "document_name": self.doc.name,
-                                "version": getattr(self.doc, "version", "1.0.0"),
-                            }
-                        )
-
-                    # Handle origin object serialization
-                    if hasattr(self.doc, "origin") and self.doc.origin:
-                        origin = self.doc.origin
-                        metadata["origin"] = {
-                            "mimetype": getattr(origin, "mimetype", ""),
-                            "filename": getattr(origin, "filename", ""),
-                            "binary_hash": getattr(origin, "binary_hash", 0),
-                            "uri": getattr(origin, "uri", None),
-                        }
-
-                    if metadata:
-                        lexical_data["metadata"] = metadata
-                        logger.debug(f"Added metadata with {len(metadata)} fields")
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to include document metadata: {e}. Proceeding without metadata."
-                    )
-
-            logger.debug(
-                "DoclingDocument to Lexical transformation completed successfully"
-            )
-            return lexical_data
+            # Build the final structure
+            return self._build_final_structure(lexical_children)
 
         except TransformationError:
             # Re-raise transformation errors without wrapping
@@ -471,78 +614,270 @@ class LexicalDocSerializer(BaseDocSerializer):
                 cause=e,
             ) from e
 
+    def _build_final_structure(self, lexical_children: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Build final Lexical structure with metadata."""
+        # Create the root Lexical structure
+        root_node = {
+            "children": lexical_children,
+            "direction": TEXT_DIRECTION_LTR,
+            "format": DEFAULT_STYLE,
+            "indent": DEFAULT_INDENT,
+            "type": NODE_TYPE_ROOT,
+            "version": self.params.version,
+        }
+
+        # Add custom root attributes if provided
+        if self.params.custom_root_attributes:
+            try:
+                root_node.update(self.params.custom_root_attributes)
+                logger.debug(
+                    f"Added {len(self.params.custom_root_attributes)} custom root attributes"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to add custom root attributes: {e}. Proceeding without them."
+                )
+
+        lexical_data = {"root": root_node}
+
+        # Include document metadata if requested
+        if self.params.include_metadata:
+            try:
+                metadata = {}
+                if hasattr(self.doc, "name") and self.doc.name:
+                    metadata.update(
+                        {
+                            "document_name": self.doc.name,
+                            "version": getattr(self.doc, "version", "1.0.0"),
+                        }
+                    )
+
+                # Handle origin object serialization
+                if hasattr(self.doc, "origin") and self.doc.origin:
+                    origin = self.doc.origin
+                    metadata["origin"] = {
+                        "mimetype": getattr(origin, "mimetype", ""),
+                        "filename": getattr(origin, "filename", ""),
+                        "binary_hash": getattr(origin, "binary_hash", 0),
+                        "uri": getattr(origin, "uri", None),
+                    }
+
+                if metadata:
+                    lexical_data["metadata"] = metadata
+                    logger.debug(f"Added metadata with {len(metadata)} fields")
+            except Exception as e:
+                logger.warning(
+                    f"Failed to include document metadata: {e}. Proceeding without metadata."
+                )
+
+        logger.debug(
+            "DoclingDocument to Lexical transformation completed successfully"
+        )
+        return lexical_data
+
+    def _encode_json(self, data: Dict[str, Any]) -> str:
+        """Encode data to JSON using selected encoder."""
+        try:
+            if self._json_encoder == json:
+                # Standard library json
+                indent = JSON_INDENT_SIZE if self.params.indent_json else None
+                return json.dumps(data, indent=indent, ensure_ascii=False)
+
+            elif (
+                hasattr(self._json_encoder, "__name__")
+                and self._json_encoder.__name__ == "orjson"
+            ):
+                # orjson
+                options = 0
+                if self.params.indent_json:
+                    options |= self._json_encoder.OPT_INDENT_2
+                return self._json_encoder.dumps(data, option=options).decode("utf-8")
+
+            elif hasattr(self._json_encoder, "dumps"):
+                # ujson and other libraries
+                try:
+                    if self.params.indent_json:
+                        # Try with all parameters
+                        return self._json_encoder.dumps(
+                            data, indent=JSON_INDENT_SIZE, ensure_ascii=False
+                        )
+                    else:
+                        return self._json_encoder.dumps(data, ensure_ascii=False)
+                except TypeError:
+                    # Fallback if ensure_ascii not supported
+                    if self.params.indent_json:
+                        return self._json_encoder.dumps(data, indent=JSON_INDENT_SIZE)
+                    else:
+                        return self._json_encoder.dumps(data)
+
+            else:
+                # Ultimate fallback to standard json
+                indent = JSON_INDENT_SIZE if self.params.indent_json else None
+                return json.dumps(data, indent=indent, ensure_ascii=False)
+
+        except Exception as e:
+            raise TransformationError(
+                f"JSON encoding failed: {e}",
+                transformation_type="json_encoding",
+                cause=e,
+            ) from e
+
+    def _process_body_children_streaming(self) -> Generator[Dict[str, Any], None, None]:
+        """Generator that yields processed body children in batches."""
+        batch = []
+        batch_count = 0
+
+        for i, child_ref in enumerate(self.doc.body.children):
+            try:
+                if not child_ref.cref:
+                    continue
+
+                lexical_node = self._process_single_child_ref_optimized(child_ref)
+                if lexical_node:
+                    batch.append(lexical_node)
+                    batch_count += 1
+                    self._elements_processed += 1
+
+                # Process batch when full
+                if batch_count >= self.params.batch_size:
+                    for node in batch:
+                        yield node
+                    batch.clear()
+                    batch_count = 0
+
+                    # Update progress
+                    if self.params.progress_callback:
+                        progress = min(0.7, i / len(self.doc.body.children) * 0.7)
+                        self.params.progress_callback(progress)
+
+                    # Force garbage collection for memory management
+                    if self.params.memory_efficient_mode:
+                        gc.collect()
+
+            except Exception as e:
+                logger.warning(f"Failed to process child ref {i}: {e}")
+                continue
+
+        # Yield remaining items
+        for node in batch:
+            yield node
+
+    def _split_body_children_into_chunks(self) -> List[List]:
+        """Split body children into chunks for parallel processing."""
+        children = self.doc.body.children
+        chunk_size = max(1, len(children) // self.params.max_workers)
+
+        chunks = []
+        for i in range(0, len(children), chunk_size):
+            chunk = children[i : i + chunk_size]
+            chunks.append(chunk)
+
+        logger.debug(f"Split {len(children)} children into {len(chunks)} chunks")
+        return chunks
+
+    def _process_body_children_chunk(self, children_chunk: List) -> List[Dict[str, Any]]:
+        """Process a chunk of body children."""
+        lexical_nodes = []
+
+        for child_ref in children_chunk:
+            try:
+                if not child_ref.cref:
+                    continue
+
+                lexical_node = self._process_single_child_ref_optimized(child_ref)
+                if lexical_node:
+                    lexical_nodes.append(lexical_node)
+                    self._elements_processed += 1
+
+            except Exception as e:
+                logger.warning(f"Failed to process child ref in chunk: {e}")
+                continue
+
+        return lexical_nodes
+
+    def _process_body_children_optimized(self) -> List[Dict[str, Any]]:
+        """Process body children with optimizations."""
+        lexical_nodes = []
+
+        for i, child_ref in enumerate(self.doc.body.children):
+            try:
+                if not child_ref.cref:
+                    continue
+
+                lexical_node = self._process_single_child_ref_optimized(child_ref)
+                if lexical_node:
+                    lexical_nodes.append(lexical_node)
+                    self._elements_processed += 1
+
+                # Update progress periodically
+                if self.params.progress_callback and i % 100 == 0:
+                    progress = min(0.7, i / len(self.doc.body.children) * 0.7)
+                    self.params.progress_callback(progress)
+
+                # Memory management for large documents
+                if (
+                    self.params.memory_efficient_mode
+                    and i % self.params.batch_size == 0
+                ):
+                    gc.collect()
+
+            except Exception as e:
+                logger.warning(f"Failed to process child ref {i}: {e}")
+                continue
+
+        return lexical_nodes
+
+    def _process_single_child_ref_optimized(self, child_ref) -> Optional[Dict[str, Any]]:
+        """Process a single child reference with optimizations."""
+        # Parse reference
+        ref_parts = child_ref.cref.split("/")
+        if len(ref_parts) < MIN_REF_PARTS:
+            return None
+
+        element_type = ref_parts[REF_ELEMENT_TYPE_INDEX]
+
+        # Parse element index with error handling
+        try:
+            element_index = int(ref_parts[REF_ELEMENT_INDEX])
+        except ValueError:
+            return None
+
+        # Process based on element type with bounds checking
+        if element_type == ELEMENT_TYPE_TEXTS:
+            if element_index >= len(self.doc.texts):
+                return None
+            text_item = self.doc.texts[element_index]
+            return self._create_text_node_optimized(text_item)
+
+        elif element_type == ELEMENT_TYPE_TABLES:
+            if element_index >= len(self.doc.tables):
+                return None
+            table_item = self.doc.tables[element_index]
+            if self.table_serializer:
+                return self.table_serializer.serialize(table_item, self.params)
+            else:
+                return self._create_table_node_optimized(table_item)
+
+        elif element_type == ELEMENT_TYPE_GROUPS:
+            if element_index >= len(self.doc.groups):
+                return None
+            group_item = self.doc.groups[element_index]
+            return self._create_group_node_optimized(group_item)
+
+        elif element_type == ELEMENT_TYPE_PICTURES:
+            if hasattr(self.doc, "pictures") and element_index < len(self.doc.pictures):
+                picture_item = self.doc.pictures[element_index]
+                return self.image_serializer.serialize(picture_item, self.params)
+
+        return None
+
     def _process_body_children(self) -> List[Dict[str, Any]]:
         """Process DoclingDocument body children and convert to Lexical nodes.
 
         Returns:
             List of Lexical nodes
         """
-        lexical_nodes = []
-
-        for child_ref in self.doc.body.children:
-            try:
-                if not child_ref.cref:
-                    continue
-
-                # Parse the reference to determine type and index
-                ref_parts = child_ref.cref.split("/")
-                if len(ref_parts) < MIN_REF_PARTS:
-                    continue
-
-                element_type = ref_parts[REF_ELEMENT_TYPE_INDEX]
-
-                # Parse element index with error handling
-                try:
-                    element_index = int(ref_parts[REF_ELEMENT_INDEX])
-                except ValueError:
-                    continue
-
-                # Process based on element type with bounds checking
-                if element_type == ELEMENT_TYPE_TEXTS:
-                    if element_index >= len(self.doc.texts):
-                        continue
-                    text_item = self.doc.texts[element_index]
-                    lexical_node = self._create_text_node(text_item)
-                    if lexical_node:
-                        lexical_nodes.append(lexical_node)
-
-                elif element_type == ELEMENT_TYPE_TABLES:
-                    if element_index >= len(self.doc.tables):
-                        continue
-                    table_item = self.doc.tables[element_index]
-                    if self.table_serializer:
-                        lexical_node = self.table_serializer.serialize(
-                            table_item, self.params
-                        )
-                    else:
-                        lexical_node = self._create_table_node(table_item)
-                    if lexical_node:
-                        lexical_nodes.append(lexical_node)
-
-                elif element_type == ELEMENT_TYPE_GROUPS:
-                    if element_index >= len(self.doc.groups):
-                        continue
-                    group_item = self.doc.groups[element_index]
-                    lexical_node = self._create_group_node(group_item)
-                    if lexical_node:
-                        lexical_nodes.append(lexical_node)
-
-                elif element_type == ELEMENT_TYPE_PICTURES:
-                    if hasattr(self.doc, "pictures") and element_index < len(
-                        self.doc.pictures
-                    ):
-                        picture_item = self.doc.pictures[element_index]
-                        lexical_node = self.image_serializer.serialize(
-                            picture_item, self.params
-                        )
-                        if lexical_node:
-                            lexical_nodes.append(lexical_node)
-
-            except (AttributeError, IndexError, TypeError):
-                # Skip malformed references and continue processing
-                continue
-
-        return lexical_nodes
+        return self._process_body_children_optimized()
 
     def _detect_text_formatting(
         self, text_content: str, text_item: Optional[TextItemType] = None
@@ -745,6 +1080,13 @@ class LexicalDocSerializer(BaseDocSerializer):
             "version": self.params.version,
         }
 
+    def _create_text_node_optimized(self, text_item: TextItemType) -> Optional[Dict[str, Any]]:
+        """Create optimized text node."""
+        if text_item.label == "section_header":
+            return self._create_heading_node_optimized(text_item)
+        else:
+            return self._create_paragraph_node_optimized(text_item)
+
     def _create_text_node(self, text_item: TextItemType) -> Optional[Dict[str, Any]]:
         """Create a Lexical node from a DoclingDocument TextItem.
 
@@ -754,35 +1096,28 @@ class LexicalDocSerializer(BaseDocSerializer):
         Returns:
             Lexical node dictionary or None if conversion fails
         """
-        if text_item.label == "section_header":
-            return self._create_heading_node(text_item)
-        else:
-            return self._create_paragraph_node(text_item)
+        return self._create_text_node_optimized(text_item)
 
-    def _create_heading_node(self, text_item: SectionHeaderItem) -> Dict[str, Any]:
-        """Create a Lexical heading node from a TextItem.
+    def _create_heading_node_optimized(self, text_item: SectionHeaderItem) -> Dict[str, Any]:
+        """Create optimized heading node."""
+        # Check cache first
+        if self._node_cache is not None:
+            cache_key = f"heading_{text_item.text}_{getattr(text_item, 'level', 1)}"
+            if cache_key in self._node_cache:
+                return self._node_cache[cache_key].copy()
 
-        Args:
-            text_item: The heading TextItem
-
-        Returns:
-            Lexical heading node
-        """
-        # Map level to HTML heading tags with error handling
         try:
             level = getattr(text_item, "level", MIN_HEADING_LEVEL)
             tag = f"h{min(max(level, MIN_HEADING_LEVEL), MAX_HEADING_LEVEL)}"
-
-            # Handle missing or malformed text content
             text_content = getattr(text_item, "text", "") or ""
 
             # Detect formatting if enabled, passing the text_item for metadata
-            format_types = self._detect_text_formatting(text_content, text_item)
+            format_types = self._detect_text_formatting_optimized(text_content, text_item)
 
             # Create formatted text node
-            text_node = self._create_formatted_text_node(text_content, format_types)
+            text_node = self._create_formatted_text_node_optimized(text_content, format_types)
 
-            return {
+            node = {
                 "children": [text_node],
                 "direction": TEXT_DIRECTION_LTR,
                 "format": DEFAULT_STYLE,
@@ -791,33 +1126,27 @@ class LexicalDocSerializer(BaseDocSerializer):
                 "type": NODE_TYPE_HEADING,
                 "version": self.params.version,
             }
+
+            # Cache result
+            if self._node_cache is not None:
+                cache_key = f"heading_{text_item.text}_{level}"
+                self._node_cache[cache_key] = node.copy()
+
+            return node
+
         except (AttributeError, TypeError):
-            # Return default heading if text item is malformed
-            default_text_node = self._create_formatted_text_node("", [])
-            return {
-                "children": [default_text_node],
-                "direction": TEXT_DIRECTION_LTR,
-                "format": DEFAULT_STYLE,
-                "indent": DEFAULT_INDENT,
-                "tag": DEFAULT_HEADING_TAG,
-                "type": NODE_TYPE_HEADING,
-                "version": self.params.version,
-            }
+            # Return default heading for malformed items
+            return self._create_default_heading_node()
 
-    def _create_paragraph_node(self, text_item: TextItem) -> Dict[str, Any]:
-        """Create a Lexical paragraph node from a TextItem.
-
-        Args:
-            text_item: The paragraph TextItem
-
-        Returns:
-            Lexical paragraph node
-        """
-        # Handle missing or malformed text content
+    def _create_paragraph_node_optimized(self, text_item: TextItem) -> Dict[str, Any]:
+        """Create optimized paragraph node."""
         text_content = getattr(text_item, "text", "") or ""
 
         # Check for links in the text and create appropriate nodes
-        children = self._process_text_with_links(text_content, text_item)
+        if self.params.optimize_text_formatting:
+            children = self._process_text_with_links_optimized(text_content, text_item)
+        else:
+            children = [self._create_formatted_text_node_optimized(text_content, [])]
 
         return {
             "children": children,
@@ -828,23 +1157,15 @@ class LexicalDocSerializer(BaseDocSerializer):
             "version": self.params.version,
         }
 
-    def _create_table_node(self, table_item: TableItem) -> Dict[str, Any]:
-        """Create a Lexical table node from a TableItem.
-
-        Args:
-            table_item: The TableItem to convert
-
-        Returns:
-            Lexical table node
-        """
+    def _create_table_node_optimized(self, table_item: TableItem) -> Dict[str, Any]:
+        """Create optimized table node."""
         rows: List[Dict[str, Any]] = []
 
-        # Convert table grid to Lexical table rows
         try:
             if table_item.data and table_item.data.grid:
                 for row in table_item.data.grid:
                     try:
-                        lexical_row: Dict[str, Any] = {
+                        lexical_row = {
                             "children": [],
                             "direction": TEXT_DIRECTION_LTR,
                             "format": DEFAULT_STYLE,
@@ -853,14 +1174,16 @@ class LexicalDocSerializer(BaseDocSerializer):
                             "version": self.params.version,
                         }
 
+                        # Process cells in batch
+                        cells = []
                         for cell in row:
                             try:
-                                # Handle missing or malformed cell text
                                 cell_text = getattr(cell, "text", "") or ""
-
                                 lexical_cell = {
                                     "children": [
-                                        self._create_formatted_text_node(cell_text, [])
+                                        self._create_formatted_text_node_optimized(
+                                            cell_text, []
+                                        )
                                     ],
                                     "direction": TEXT_DIRECTION_LTR,
                                     "format": DEFAULT_STYLE,
@@ -869,32 +1192,28 @@ class LexicalDocSerializer(BaseDocSerializer):
                                     "version": self.params.version,
                                 }
 
-                                # Add header state if it's a header cell
+                                # Add header state efficiently
                                 if (
                                     hasattr(cell, "column_header")
                                     and cell.column_header
                                 ):
                                     lexical_cell["headerState"] = HEADER_STATE_VALUE
 
-                                lexical_row["children"].append(lexical_cell)
-
+                                cells.append(lexical_cell)
                             except (AttributeError, TypeError):
-                                # Skip malformed cells
                                 continue
 
-                        # Only add row if it has cells
-                        if lexical_row["children"]:
+                        lexical_row["children"] = cells
+                        if cells:  # Only add rows with cells
                             rows.append(lexical_row)
 
                     except (AttributeError, TypeError):
-                        # Skip malformed rows
                         continue
 
         except (AttributeError, TypeError):
-            # Handle case where table structure is completely malformed
             pass
 
-        # Create the table node
+        # Calculate dimensions efficiently
         num_rows = len(rows)
         num_cols = len(rows[0]["children"]) if rows else 0
 
@@ -909,88 +1228,85 @@ class LexicalDocSerializer(BaseDocSerializer):
             "columns": num_cols,
         }
 
-    def _create_group_node(self, group_item: GroupItemType) -> Dict[str, Any]:
-        """Create a Lexical list node from a GroupItem.
-
-        Args:
-            group_item: The GroupItem to convert
-
-        Returns:
-            Lexical list node
-        """
-        # Determine list type by examining the first item's content
-        list_type = "unordered"  # default
+    def _create_group_node_optimized(self, group_item: GroupItemType) -> Dict[str, Any]:
+        """Create optimized group/list node."""
+        # Determine list type efficiently
+        list_type = LIST_TYPE_UNORDERED
         try:
-            if group_item.children:
-                first_ref = group_item.children[0]
-                if first_ref.cref and "texts" in first_ref.cref:
-                    ref_parts = first_ref.cref.split("/")
-                    if len(ref_parts) >= 3 and ref_parts[1] == "texts":
-                        try:
-                            text_index = int(ref_parts[2])
-                            if text_index < len(self.doc.texts):
-                                first_text = (
-                                    getattr(self.doc.texts[text_index], "text", "")
-                                    or ""
-                                )
-                                # Check if it starts with a number followed by period
-                                if (
-                                    first_text
-                                    and ". " in first_text
-                                    and first_text.split(". ", 1)[0].strip().isdigit()
-                                ):
-                                    list_type = "ordered"
-                        except (ValueError, IndexError, AttributeError):
-                            # Default to unordered if parsing fails
-                            pass
+            if (
+                group_item.children
+                and group_item.children[0].cref
+                and "texts" in group_item.children[0].cref
+            ):
+                ref_parts = group_item.children[0].cref.split("/")
+                if len(ref_parts) >= 3 and ref_parts[1] == "texts":
+                    try:
+                        text_index = int(ref_parts[2])
+                        if text_index < len(self.doc.texts):
+                            first_text = (
+                                getattr(self.doc.texts[text_index], "text", "") or ""
+                            )
+                            if first_text and ". " in first_text:
+                                prefix = first_text.split(". ", 1)[0].strip()
+                                if prefix.isdigit():
+                                    list_type = LIST_TYPE_ORDERED
+                    except (ValueError, IndexError, AttributeError):
+                        pass
         except (AttributeError, TypeError):
-            # Default to unordered if group structure is malformed
             pass
 
-        tag = "ol" if list_type == "ordered" else "ul"
+        tag = LIST_TAG_ORDERED if list_type == LIST_TYPE_ORDERED else LIST_TAG_UNORDERED
 
         list_items = []
 
-        # Process child text items
+        # Process list items in batch
         for child_ref in group_item.children:
             if not child_ref.cref:
                 continue
 
             ref_parts = child_ref.cref.split("/")
             if len(ref_parts) >= 3 and ref_parts[1] == "texts":
-                text_index = int(ref_parts[2])
-                if text_index < len(self.doc.texts):
-                    text_item = self.doc.texts[text_index]
+                try:
+                    text_index = int(ref_parts[2])
+                    if text_index < len(self.doc.texts):
+                        text_item = self.doc.texts[text_index]
+                        text_content = text_item.text
 
-                    # Extract the actual content without list markers
-                    text_content = text_item.text
-                    # Remove bullet points or numbers if they exist
-                    if text_content.startswith("● "):
-                        text_content = text_content[2:]  # Remove bullet and space
-                    elif text_content.startswith("• "):
-                        text_content = text_content[2:]  # Remove bullet and space
-                    elif (
-                        ". " in text_content
-                        and text_content.split(". ", 1)[0].isdigit()
-                    ):
-                        text_content = text_content.split(". ", 1)[
-                            1
-                        ]  # Remove number and period
+                        # Remove list markers efficiently
+                        if text_content.startswith("● "):
+                            text_content = text_content[2:]
+                        elif text_content.startswith("• "):
+                            text_content = text_content[2:]
+                        elif ". " in text_content:
+                            parts = text_content.split(". ", 1)
+                            if parts[0].isdigit():
+                                text_content = parts[1]
 
-                    # Process text with links and formatting
-                    children = self._process_text_with_links(text_content, text_item)
+                        # Process text optimally
+                        if self.params.optimize_text_formatting:
+                            children = self._process_text_with_links_optimized(
+                                text_content, text_item
+                            )
+                        else:
+                            children = [
+                                self._create_formatted_text_node_optimized(
+                                    text_content, []
+                                )
+                            ]
 
-                    list_item = {
-                        "children": children,
-                        "direction": TEXT_DIRECTION_LTR,
-                        "format": DEFAULT_STYLE,
-                        "indent": DEFAULT_INDENT,
-                        "type": NODE_TYPE_LIST_ITEM,
-                        "value": 1,
-                        "version": self.params.version,
-                    }
+                        list_item = {
+                            "children": children,
+                            "direction": TEXT_DIRECTION_LTR,
+                            "format": DEFAULT_STYLE,
+                            "indent": DEFAULT_INDENT,
+                            "type": NODE_TYPE_LIST_ITEM,
+                            "value": 1,
+                            "version": self.params.version,
+                        }
 
-                    list_items.append(list_item)
+                        list_items.append(list_item)
+                except (ValueError, IndexError, AttributeError):
+                    continue
 
         return {
             "children": list_items,
@@ -1003,6 +1319,194 @@ class LexicalDocSerializer(BaseDocSerializer):
             "type": NODE_TYPE_LIST,
             "version": self.params.version,
         }
+
+    def _detect_text_formatting_optimized(
+        self, text_content: str, text_item: Optional[TextItemType] = None
+    ) -> List[str]:
+        """Fast text formatting detection with minimal overhead."""
+        format_types = []
+
+        if not text_content or not self.params.preserve_formatting:
+            return format_types
+
+        # Quick heuristic checks (faster than detailed analysis)
+        lower_text = text_content.lower()
+
+        if (
+            text_content.isupper()
+            or "important" in lower_text
+            or text_content.startswith("**")
+        ):
+            format_types.append("bold")
+        elif "italic" in lower_text or text_content.startswith("*"):
+            format_types.append("italic")
+
+        return format_types
+
+    def _process_text_with_links_optimized(
+        self, text_content: str, text_item: Optional[TextItemType] = None
+    ) -> List[Dict[str, Any]]:
+        """Fast link processing with minimal regex overhead."""
+        # Quick check for URLs to avoid regex if not needed
+        if "http" not in text_content and "www." not in text_content:
+            format_types = self._detect_text_formatting_optimized(text_content, text_item)
+            return [
+                self._create_formatted_text_node_optimized(text_content, format_types)
+            ]
+
+        # Use simplified URL detection
+        import re
+
+        url_pattern = r"https?://\S+|www\.\S+"
+        urls = list(re.finditer(url_pattern, text_content))
+
+        if not urls:
+            format_types = self._detect_text_formatting_optimized(text_content, text_item)
+            return [
+                self._create_formatted_text_node_optimized(text_content, format_types)
+            ]
+
+        # Process URLs (simplified version of original logic)
+        nodes = []
+        last_end = 0
+
+        for url_match in urls:
+            # Add text before URL
+            if url_match.start() > last_end:
+                before_text = text_content[last_end : url_match.start()]
+                if before_text.strip():
+                    format_types = self._detect_text_formatting_optimized(
+                        before_text, text_item
+                    )
+                    nodes.append(
+                        self._create_formatted_text_node_optimized(
+                            before_text, format_types
+                        )
+                    )
+
+            # Add link node
+            url = url_match.group()
+            if not url.startswith("http"):
+                url = "https://" + url
+            nodes.append(self._create_link_node_optimized(url_match.group(), url))
+            last_end = url_match.end()
+
+        # Add remaining text
+        if last_end < len(text_content):
+            after_text = text_content[last_end:]
+            if after_text.strip():
+                format_types = self._detect_text_formatting_optimized(after_text, text_item)
+                nodes.append(
+                    self._create_formatted_text_node_optimized(after_text, format_types)
+                )
+
+        return nodes
+
+    def _create_formatted_text_node_optimized(
+        self, text_content: str, format_types: List[str]
+    ) -> Dict[str, Any]:
+        """Create optimized formatted text node."""
+        # Calculate format bitmask efficiently
+        format_value = 0
+        for fmt in format_types:
+            if fmt == "bold":
+                format_value |= FORMAT_BOLD
+            elif fmt == "italic":
+                format_value |= FORMAT_ITALIC
+            elif fmt == "underline":
+                format_value |= FORMAT_UNDERLINE
+            elif fmt == "strikethrough":
+                format_value |= FORMAT_STRIKETHROUGH
+
+        return {
+            "detail": DEFAULT_DETAIL,
+            "format": format_value,
+            "mode": DEFAULT_MODE,
+            "style": DEFAULT_STYLE,
+            "text": text_content,
+            "type": NODE_TYPE_TEXT,
+            "version": self.params.version,
+        }
+
+    def _create_link_node_optimized(
+        self, text_content: str, url: str
+    ) -> Dict[str, Any]:
+        """Create optimized link node."""
+        return {
+            "children": [
+                {
+                    "detail": DEFAULT_DETAIL,
+                    "format": DEFAULT_FORMAT,
+                    "mode": DEFAULT_MODE,
+                    "style": DEFAULT_STYLE,
+                    "text": text_content,
+                    "type": NODE_TYPE_TEXT,
+                    "version": self.params.version,
+                }
+            ],
+            "direction": TEXT_DIRECTION_LTR,
+            "format": DEFAULT_STYLE,
+            "indent": DEFAULT_INDENT,
+            "type": NODE_TYPE_LINK,
+            "url": url,
+            "version": self.params.version,
+        }
+
+    def _create_default_heading_node(self) -> Dict[str, Any]:
+        """Create default heading node for error cases."""
+        return {
+            "children": [self._create_formatted_text_node_optimized("", [])],
+            "direction": TEXT_DIRECTION_LTR,
+            "format": DEFAULT_STYLE,
+            "indent": DEFAULT_INDENT,
+            "tag": DEFAULT_HEADING_TAG,
+            "type": NODE_TYPE_HEADING,
+            "version": self.params.version,
+        }
+
+    def _create_heading_node(self, text_item: SectionHeaderItem) -> Dict[str, Any]:
+        """Create a Lexical heading node from a TextItem.
+
+        Args:
+            text_item: The heading TextItem
+
+        Returns:
+            Lexical heading node
+        """
+        return self._create_heading_node_optimized(text_item)
+
+    def _create_paragraph_node(self, text_item: TextItem) -> Dict[str, Any]:
+        """Create a Lexical paragraph node from a TextItem.
+
+        Args:
+            text_item: The paragraph TextItem
+
+        Returns:
+            Lexical paragraph node
+        """
+        return self._create_paragraph_node_optimized(text_item)
+
+    def _create_table_node(self, table_item: TableItem) -> Dict[str, Any]:
+        """Create a Lexical table node from a TableItem.
+
+        Args:
+            table_item: The TableItem to convert
+
+        Returns:
+            Lexical table node
+        """
+        return self._create_table_node_optimized(table_item)
+
+    def _create_group_node(self, group_item: GroupItemType) -> Dict[str, Any]:
+        """Create a Lexical list node from a GroupItem.
+
+        Args:
+            group_item: The GroupItem to convert
+
+        Returns:
+            Lexical list node
+        """
+        return self._create_group_node_optimized(group_item)
 
     # Required abstract method implementations from BaseDocSerializer
     def get_excluded_refs(self, **kwargs: Any) -> set[str]:
@@ -1095,6 +1599,28 @@ class LexicalDocSerializer(BaseDocSerializer):
             The text unchanged (formatting handled in JSON structure)
         """
         return text
+
+    def get_performance_stats(self) -> Dict[str, Any]:
+        """Get current performance statistics."""
+        duration = (
+            (time.time() - self._start_time) * 1000 if self._start_time > 0 else 0
+        )
+
+        return {
+            "elements_processed": self._elements_processed,
+            "duration_ms": duration,
+            "elements_per_second": (
+                (self._elements_processed / (duration / 1000)) if duration > 0 else 0
+            ),
+            "json_encoder": self._json_encoder.__name__,
+            "cache_size": len(self._node_cache) if self._node_cache else 0,
+            "configuration": {
+                "streaming": self.params.enable_streaming,
+                "parallel": self.params.parallel_processing,
+                "batch_size": self.params.batch_size,
+                "memory_efficient": self.params.memory_efficient_mode,
+            },
+        }
 
     def serialize_captions(
         self, item: FloatingItem, **kwargs: Any
