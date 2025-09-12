@@ -471,11 +471,25 @@ class DoclingJsonReader(BaseReader):
     ) -> DoclingDocument:
         """Validate JSON data and create DoclingDocument."""
         try:
+            # Extract version for logging and potential downstream handling (if json_data is a dict)
+            version = "unknown"
+            if isinstance(json_data, dict):
+                version = json_data.get("version", "unknown")
+                logger.debug(f"Processing DoclingDocument version {version} from {file_path}")
+            
             # Validate DoclingDocument schema
             validate_docling_document(json_data, file_path)
 
             # Create DoclingDocument
             document = DoclingDocument.model_validate(json_data)
+            
+            # Log version-specific handling info
+            if version == "1.7.0":
+                logger.info(
+                    f"Loaded DoclingDocument v1.7.0 from {file_path}. "
+                    "Note: This version uses segment-local charspans (each segment starts at 0)."
+                )
+            
             return document
 
         except ValidationError as e:

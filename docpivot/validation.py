@@ -46,7 +46,7 @@ class DocumentValidator:
     EXPECTED_SCHEMA_NAME = "DoclingDocument"
 
     # Supported DoclingDocument versions
-    SUPPORTED_VERSIONS = {"1.4.0", "1.3.0", "1.2.0"}
+    SUPPORTED_VERSIONS = {"1.7.0", "1.4.0", "1.3.0", "1.2.0"}
 
     def validate_docling_document(
         self,
