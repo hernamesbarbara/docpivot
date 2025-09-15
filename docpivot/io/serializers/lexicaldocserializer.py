@@ -32,13 +32,10 @@ from docpivot.io.readers.exceptions import (
 from docpivot.validation import validate_docling_document
 from docpivot.logging_config import (
     get_logger,
-    PerformanceLogger,
     log_exception_with_context,
 )
-from docpivot.performance import PerformanceConfig
 
 logger = get_logger(__name__)
-perf_logger = PerformanceLogger(logger)
 
 # Type aliases for method parameters
 TextItemType = Union[SectionHeaderItem, TextItem]
@@ -223,7 +220,6 @@ class LexicalDocSerializer(BaseDocSerializer):
         params: Optional[LexicalParams] = None,
         image_serializer: Optional[ComponentSerializer] = None,
         table_serializer: Optional[ComponentSerializer] = None,
-        performance_config: Optional[PerformanceConfig] = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the LexicalDocSerializer.
@@ -233,7 +229,6 @@ class LexicalDocSerializer(BaseDocSerializer):
             params: Optional LexicalParams for configuration
             image_serializer: Optional custom image serializer
             table_serializer: Optional custom table serializer
-            performance_config: Optional PerformanceConfig for performance monitoring
             **kwargs: Additional parameters for extensibility
         """
         super().__init__()
@@ -242,7 +237,6 @@ class LexicalDocSerializer(BaseDocSerializer):
         self.params = params or LexicalParams()
         self.image_serializer = image_serializer or ImageSerializer()
         self.table_serializer = table_serializer
-        self.performance_config = performance_config or PerformanceConfig()
 
         # Performance optimization state (with safeguards for invalid params)
         try:
@@ -343,19 +337,8 @@ class LexicalDocSerializer(BaseDocSerializer):
             else:
                 json_text = self._serialize_standard()
 
-            # Log performance metrics
+            # Performance metrics removed - simplified implementation
             duration = (time.time() - self._start_time) * 1000
-            perf_logger.log_operation_time(
-                "optimized_lexical_serialization",
-                duration,
-                {
-                    "elements_processed": self._elements_processed,
-                    "output_size_chars": len(json_text),
-                    "streaming": use_streaming,
-                    "parallel": use_parallel,
-                    "json_encoder": self._json_encoder.__name__,
-                },
-            )
 
             logger.info(
                 f"Lexical serialization complete: {duration:.2f}ms, {len(json_text)} chars"

@@ -1,191 +1,331 @@
 # DocPivot Testing Documentation
 
-## Overview
+## Testing Philosophy
 
-DocPivot has a comprehensive test suite designed to ensure reliability and correctness of all functionality. The test suite achieves **93% code coverage** with 187 tests covering all major components.
+DocPivot follows a **pragmatic Test-Driven Development (TDD)** approach optimized for a single-developer project. We prioritize:
 
-## Test Structure
+1. **TDD for new features** - Write tests first when adding functionality
+2. **90%+ coverage target** - Focus on code paths that matter
+3. **Fast test execution** - Full suite runs in <120 seconds
+4. **Simplicity over complexity** - Maintainable tests that catch real bugs
+
+## TDD Workflow
+
+### 1. Write Test First
+```python
+# tests/test_engine.py
+def test_new_feature():
+    """Test that new feature works as expected."""
+    engine = DocPivotEngine()
+    result = engine.new_feature()  # This doesn't exist yet
+    assert result == expected_value
+```
+
+### 2. Run Failing Test
+```bash
+# Run specific test and stop on first failure
+pytest tests/test_engine.py::test_new_feature -xvs
+```
+
+### 3. Implement Minimal Code
+Write just enough code to make the test pass.
+
+### 4. Verify Test Passes
+```bash
+# Run again to confirm
+pytest tests/test_engine.py::test_new_feature -xvs
+```
+
+### 5. Refactor with Confidence
+Clean up implementation knowing tests will catch regressions.
+
+### 6. Check Coverage
+```bash
+# Quick coverage check
+pytest --cov=docpivot --cov-report=term:skip-covered -q
+```
+
+## Test Structure (Simplified for v2.0)
+
+After the v2.0 refactor that removed 30% of the codebase, tests are organized into three focused files:
 
 ### Core Test Files
 
-#### Unit Tests
-- `test_basereader.py` - Base reader interface and common functionality
-- `test_doclingjsonreader.py` - DoclingJsonReader implementation
-- `test_lexicaljsonreader.py` - LexicalJsonReader implementation  
-- `test_lexicaldocserializer.py` - LexicalDocSerializer implementation
-- `test_readerfactory.py` - Format detection and reader factory
-- `test_serializerprovider.py` - Serializer provider and integration
-- `test_exceptions.py` - Error handling and custom exceptions
+```
+tests/
+├── test_docpivot_engine.py      # Core engine tests (unit + integration)
+├── test_integration.py           # End-to-end with real files (if needed)
+└── test_performance.py           # Performance benchmarks (optional)
+```
 
-#### Integration Tests
-- `test_readers_with_sample_data.py` - Reader testing with real sample files
-- `test_serializers_with_sample_data.py` - Serializer testing with realistic documents
-- `test_workflows_comprehensive.py` - End-to-end workflow testing
-- `test_edge_cases_coverage.py` - Edge cases and coverage improvements
+### Current Test Suite
+- **test_docpivot_engine.py** - 13 tests covering all major DocPivotEngine functionality
+  - Engine initialization with defaults
+  - Custom configuration
+  - File conversion
+  - PDF conversion (when docling available)
+  - Builder pattern tests
+  - Configuration presets
 
-### Sample Data
-
-The test suite uses real sample files located in `/data/`:
-- `2025-07-03-Test-PDF-Styles.docling.json` - Sample Docling document
-- `2025-07-03-Test-PDF-Styles.lexical.json` - Sample Lexical document  
-- `2025-07-03-Test-PDF-Styles.pdf` - Original PDF for reference
-
-## Test Categories
-
-### 1. Reader Tests (45 tests)
-Tests all document readers with both synthetic and real data:
-- **Format Detection**: Automatic format detection for JSON files
-- **Document Loading**: Loading and parsing various document formats
-- **Error Handling**: File not found, malformed JSON, invalid schemas
-- **Performance**: Load time benchmarks with sample data
-- **Content Validation**: Ensuring loaded content matches expected structure
-
-### 2. Serializer Tests (58 tests)  
-Tests all serializers with realistic documents:
-- **Format Output**: Correct serialization to target formats (markdown, HTML, lexical, doctags)
-- **Content Preservation**: Text and structure preservation through transformations
-- **Round-trip Conversions**: lexical → docling → lexical consistency
-- **Custom Parameters**: Serializer parameter passing and customization
-- **Quality Validation**: Output format compliance and structure validation
-
-### 3. Workflow Tests (27 tests)
-Tests high-level API functions:
-- **Load Document**: Auto-detection and document loading
-- **Load and Serialize**: Complete workflow in single function call
-- **Convert Document**: File-to-file and file-to-string conversion
-- **Error Propagation**: Error handling through complete pipeline
-- **Performance**: End-to-end workflow timing benchmarks
-- **Format Combinations**: All input format → output format combinations
-
-### 4. Factory and Provider Tests (57 tests)
-Tests factory and provider patterns:
-- **Reader Factory**: Format detection, reader selection, registration
-- **Serializer Provider**: Format-specific serializer instantiation
-- **Integration**: Factory + Provider coordination
-- **Error Handling**: Unsupported format handling and clear error messages
-
-## Test Features
-
-### Real Data Testing
-All integration tests use actual sample files rather than synthetic data:
-- Tests realistic document structures and content
-- Validates transformations preserve meaningful content
-- Ensures output quality meets real-world standards
-
-### Performance Benchmarks
-Performance tests establish baseline metrics:
-- Reader loading times: < 200ms per document
-- End-to-end workflows: < 500ms complete pipeline
-- Format detection: < 10ms per file
-- Memory usage monitoring for large documents
-
-### Error Condition Coverage
-Comprehensive error testing:
-- File system errors (missing files, permissions)
-- Format errors (malformed JSON, wrong schemas)
-- API errors (invalid parameters, unsupported formats)
-- Network/IO errors in various scenarios
-
-### Quality Validation
-Automated output quality checks:
-- Markdown structure validation (headings, paragraphs, lists)
-- HTML tag structure and compliance
-- Lexical JSON schema validation
-- Content preservation verification
+### Legacy Tests (to be cleaned up)
+The `tests_old/` directory contains 28 test files from v1.0 that need review and potential removal.
 
 ## Running Tests
 
-### Basic Test Execution
+### Quick Test Run (<10 seconds)
 ```bash
-# Run all tests
-python -m pytest tests/
+# Run core tests only
+pytest tests/test_docpivot_engine.py -q
 
-# Run with verbose output  
-python -m pytest tests/ -v
-
-# Run specific test category
-python -m pytest tests/test_workflows_comprehensive.py -v
+# Run with minimal output
+pytest tests/ -q
 ```
 
-### Coverage Reporting
+### Full Test Run with Coverage
 ```bash
-# Generate coverage report
-python -m pytest tests/ --cov=docpivot --cov-report=term-missing
+# Run all tests with coverage report
+pytest tests/ --cov=docpivot --cov-report=term-missing
 
 # Generate HTML coverage report
-python -m pytest tests/ --cov=docpivot --cov-report=html
-# View at htmlcov/index.html
+pytest tests/ --cov=docpivot --cov-report=html
+open htmlcov/index.html  # View in browser
 ```
 
 ### Performance Testing
 ```bash
-# Run only performance tests
-python -m pytest tests/ -k "performance" -v
-
 # Run with timing information
-python -m pytest tests/ --durations=10
+pytest tests/ --durations=10
+
+# Run only performance-related tests
+pytest tests/ -k "performance" -v
 ```
 
-## Test Fixtures
+### Fast Test Execution
+Use the Makefile for all test operations:
 
-The test suite uses pytest fixtures for consistent test data:
+```bash
+# Run tests with coverage (full report)
+make test
 
-### File Fixtures
-- `test_data_dir`: Path to sample data directory
-- `sample_docling_json_path`: Path to Docling sample file
-- `sample_lexical_json_path`: Path to Lexical sample file
-- `temp_directory`: Temporary directory for test outputs
-- `nonexistent_file`: Path to non-existent file for error testing
+# Run tests quickly without coverage
+make test-fast
 
-### Document Fixtures  
-- `sample_docling_document`: Minimal DoclingDocument for unit testing
-- `sample_docling_document_from_file`: Real document loaded from sample file
-- `sample_lexical_document_from_file`: Real document from Lexical sample
+# Generate HTML coverage report
+make coverage
 
-## Coverage Analysis
+# Run all checks (format, lint, type, test)
+make all
 
-Current coverage: **93%** (515 statements, 34 missing)
+# Quick pre-commit check
+make check
+```
 
-### High Coverage Modules (95%+)
-- `workflows.py`: 100% - All workflow functions covered
-- `exceptions.py`: 100% - All exception handling paths tested  
-- `doclingjsonreader.py`: 98% - Comprehensive reader testing
-- `serializerprovider.py`: 98% - Provider patterns well tested
-- `lexicaljsonreader.py`: 97% - Complex transformation logic covered
+The Makefile ensures consistent test execution and includes timing information.
 
-### Lower Coverage Areas
-- `lexicaldocserializer.py`: 86% - Complex serialization logic, some edge cases uncovered
-- `basereader.py`: 92% - Abstract base class, some paths unreachable
-- `readerfactory.py`: 93% - Factory pattern, some error paths uncovered
+## Pragmatic Testing Strategy
 
-Missing coverage primarily consists of:
-- Error handling paths in complex transformation logic
-- Edge cases in format detection for unusual files
-- Some defensive programming paths that are difficult to trigger
+### What to Test
+✅ **DO Test:**
+- Public API methods (`convert_to_lexical`, `convert_file`, `convert_pdf`)
+- Format conversions with real sample files
+- Configuration and builder patterns
+- Error handling for common user mistakes
+- Round-trip conversions (document → lexical → document)
 
-## Test Development Guidelines
+❌ **DON'T Test:**
+- Internal helper methods (unless complex)
+- Defensive code paths that never execute
+- External library behavior (trust docling, pydantic)
+- Getters/setters without logic
+- Academic edge cases with no real-world relevance
 
-### Writing New Tests
-1. **Use Real Data**: Prefer sample files over synthetic data when possible
-2. **Test Error Conditions**: Include negative test cases for each feature
-3. **Performance Awareness**: Add timing assertions for performance-critical code
-4. **Quality Validation**: Verify output quality, not just successful execution
+### Test Types Priority
 
-### Test Organization
-1. **Group Related Tests**: Use test classes to group related functionality
-2. **Clear Test Names**: Test names should describe the specific scenario being tested
-3. **Comprehensive Docstrings**: Each test should document what it validates
-4. **Fixture Usage**: Leverage fixtures to reduce code duplication
+1. **Integration Tests** (High Value)
+   - Test complete workflows with real files
+   - Catch most bugs with least effort
+   - Example: PDF → Lexical JSON conversion
 
-### CI/CD Integration
-Tests are designed to run reliably in CI environments:
-- No external dependencies required
-- Deterministic test execution
-- Clear failure messages with actionable information
-- Performance tests with reasonable tolerances
+2. **Unit Tests** (Medium Value)
+   - Test complex business logic
+   - Test error conditions
+   - Example: Configuration merging, format detection
 
-## Conclusion
+3. **Performance Tests** (Low Value)
+   - Only for critical paths
+   - Use reasonable tolerances
+   - Example: Large document processing
 
-The DocPivot test suite provides comprehensive coverage of all functionality with a focus on real-world usage scenarios. The combination of unit tests, integration tests, and performance benchmarks ensures the library works correctly and efficiently with actual document data.
+### Using Doctest for Documentation
+Combine documentation with testing:
 
-The 93% coverage metric represents thorough testing of all main code paths, with remaining uncovered lines consisting primarily of edge case error handling that is difficult to trigger in normal usage.
+```python
+def convert_to_lexical(self, document: DoclingDocument) -> ConversionResult:
+    """Convert a DoclingDocument to Lexical format.
+
+    >>> engine = DocPivotEngine()
+    >>> result = engine.convert_to_lexical(doc)
+    >>> assert result.format == "lexical"
+    """
+```
+
+Run doctests:
+```bash
+pytest --doctest-modules docpivot/
+```
+
+## Coverage Guidelines
+
+### Current Status
+- **Target**: 90% coverage
+- **Focus**: Test code paths that users will actually hit
+- **Ignore**: Defensive programming, unreachable code
+
+### Coverage Commands
+```bash
+# Quick coverage check
+pytest --cov=docpivot --cov-report=term:skip-covered
+
+# Detailed missing lines
+pytest --cov=docpivot --cov-report=term-missing
+
+# Coverage with specific file
+pytest --cov=docpivot.engine tests/test_docpivot_engine.py
+```
+
+### Excluding Code from Coverage
+Mark code that doesn't need testing:
+
+```python
+if TYPE_CHECKING:  # pragma: no cover
+    import SomeType
+
+def defensive_check():  # pragma: no cover
+    """This should never happen in practice."""
+    raise RuntimeError("Unreachable")
+```
+
+## Test Data
+
+### Sample Files Location
+```
+data/
+├── pdf/
+│   └── email.pdf                    # Sample PDF for testing
+├── json/
+│   ├── sample.docling.json         # Docling format sample
+│   └── sample.lexical.json         # Lexical format sample
+```
+
+### Creating Test Fixtures
+```python
+import pytest
+from pathlib import Path
+
+@pytest.fixture
+def sample_pdf():
+    """Return path to sample PDF."""
+    return Path("data/pdf/email.pdf")
+
+@pytest.fixture
+def temp_output_dir(tmp_path):
+    """Create temporary output directory."""
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    return output_dir
+```
+
+## CI/CD Integration
+
+### GitHub Actions Workflow
+```yaml
+# .github/workflows/ci.yml
+name: CI
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - run: pip install -e ".[dev]"
+    - run: make all  # Single CI entry point
+```
+
+### Pre-commit Hook
+```bash
+# .git/hooks/pre-commit
+#!/bin/bash
+echo "Running pre-commit checks..."
+make check || exit 1
+```
+
+## Test Maintenance
+
+### When to Add Tests
+- **Always** when adding new features (TDD)
+- When fixing bugs (regression tests)
+- When refactoring complex code
+
+### When to Remove Tests
+- Test is redundant with other tests
+- Feature being tested was removed
+- Test is brittle and provides no value
+- Test takes >5 seconds for marginal benefit
+
+### Test Review Checklist
+- [ ] Test name clearly describes what is being tested
+- [ ] Test has single responsibility
+- [ ] Test runs quickly (<1s for unit, <5s for integration)
+- [ ] Test failure message is helpful for debugging
+- [ ] Test doesn't depend on test execution order
+
+## Performance Benchmarks
+
+### Targets
+- Unit tests: <100ms each
+- Integration tests: <5s each
+- Full test suite: <120s total
+- Coverage report generation: <10s
+
+### Monitoring Test Performance
+```bash
+# Find slow tests
+pytest --durations=10
+
+# Profile specific test
+python -m cProfile -s time -m pytest tests/test_docpivot_engine.py::test_name
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Tests pass locally but fail in CI:**
+- Check for hardcoded paths
+- Verify sample files are committed
+- Check Python version differences
+
+**Coverage unexpectedly drops:**
+- New code added without tests
+- Tests were deleted but code wasn't
+- Conditional imports not being tested
+
+**Tests become slow over time:**
+- Too many integration tests
+- Not using fixtures efficiently
+- Testing external dependencies
+
+## Summary
+
+The DocPivot test suite is designed to be:
+- **Fast** - Run frequently without friction
+- **Focused** - Test what matters, ignore what doesn't
+- **Maintainable** - Easy to understand and modify
+
+Remember: The goal is to catch real bugs and enable confident refactoring, not to achieve 100% coverage or test every theoretical edge case.
+
+For a single-developer project, pragmatic testing that runs quickly and catches actual problems is more valuable than comprehensive testing that slows down development.

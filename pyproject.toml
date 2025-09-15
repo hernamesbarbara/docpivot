@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "docpivot"
-version = "1.0.0"
+version = "2.0.1"
 description = "Lightweight Python package extending Docling with additional format readers and serializers"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -43,22 +43,6 @@ dev = [
     "black>=22.0.0",
     "ruff>=0.1.0",
 ]
-test = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-]
-lint = [
-    "mypy>=1.0.0",
-    "black>=22.0.0", 
-    "ruff>=0.1.0",
-]
-all = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "mypy>=1.0.0",
-    "black>=22.0.0",
-    "ruff>=0.1.0",
-]
 
 [project.urls]
 Homepage = "https://github.com/hernamesbarbara/docpivot"
@@ -74,3 +58,169 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+
+# ============================================================
+# BLACK - Code Formatter
+# ============================================================
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.pytest_cache
+  | __pycache__
+  | build
+  | dist
+  | tests_old
+  | venv
+  | \.venv
+)/
+'''
+
+# ============================================================
+# RUFF - Fast Python Linter
+# ============================================================
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    "__pycache__",
+    "build",
+    "dist",
+    "tests_old",
+    "venv",
+    ".venv",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "DTZ",  # flake8-datetimez
+    "T20",  # flake8-print
+    "RET",  # flake8-return
+    "SIM",  # flake8-simplify
+    "PTH",  # flake8-use-pathlib
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+    "B904",  # raise without from in except block
+    "T201",  # print statements (ok for examples)
+    "T203",  # pprint statements (ok for debugging)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["T20"]  # Allow print in tests
+"examples/*" = ["T20"]  # Allow print in examples
+
+[tool.ruff.lint.isort]
+known-first-party = ["docpivot"]
+combine-as-imports = true
+force-single-line = false
+
+# ============================================================
+# COVERAGE - Test Coverage Configuration
+# ============================================================
+[tool.coverage.run]
+source = ["docpivot"]
+omit = [
+    "*/tests/*",
+    "*/tests_old/*",
+    "*/examples/*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "@abstract",
+    "@abc.abstractmethod",
+]
+precision = 2
+show_missing = true
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+# ============================================================
+# MYPY - Type Checking
+# ============================================================
+[tool.mypy]
+python_version = "3.11"
+files = ["docpivot", "tests"]
+
+# Moderate strictness globally
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false  # Will enable gradually per module
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+
+# Error display
+show_error_codes = true
+show_column_numbers = true
+pretty = true
+
+# Performance
+cache_dir = ".mypy_cache"
+incremental = true
+
+# Import handling
+ignore_missing_imports = true
+follow_imports = "silent"
+
+# Exclude patterns
+exclude = [
+    "tests_old/",
+    "build/",
+    "dist/",
+    "__pycache__/",
+    ".git/",
+    "venv/",
+    ".venv/",
+]
+
+# Per-module overrides for gradual typing
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = [
+    "docpivot.engine",
+    "docpivot.engine_builder",
+    "docpivot.defaults"
+]
+disallow_untyped_defs = true
+strict = true
+
+[[tool.mypy.overrides]]
+module = "docpivot.io.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "docpivot.validation"
+ignore_errors = true

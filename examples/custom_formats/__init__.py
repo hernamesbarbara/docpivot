@@ -1,1 +1,0 @@
-# Custom format examples for DocPivot extensibility

@@ -20,13 +20,10 @@ from .exceptions import (
 from docpivot.validation import validate_docling_document
 from docpivot.logging_config import (
     get_logger,
-    PerformanceLogger,
     log_exception_with_context,
 )
-from docpivot.performance import PerformanceConfig
 
 logger = get_logger(__name__)
-perf_logger = PerformanceLogger(logger)
 
 # Performance constants
 DEFAULT_CHUNK_SIZE = 8192
@@ -44,7 +41,7 @@ class DoclingJsonReader(BaseReader):
     reconstructs the full DoclingDocument object.
 
     Features:
-    - Configurable performance optimizations (fast JSON, streaming, caching)
+    - Fast JSON library selection (orjson, ujson, rapidjson fallbacks)
     - Automatic loading strategy selection based on file size
     - Memory-efficient file reading with mmap for large files
     - Progress callbacks for long-running operations
@@ -57,7 +54,6 @@ class DoclingJsonReader(BaseReader):
 
     def __init__(
         self,
-        performance_config: Optional[PerformanceConfig] = None,
         use_streaming: Optional[bool] = None,
         use_fast_json: bool = True,
         enable_caching: bool = False,
@@ -66,10 +62,9 @@ class DoclingJsonReader(BaseReader):
         large_file_threshold_bytes: int = DEFAULT_LARGE_FILE_THRESHOLD_BYTES,
         **kwargs: Any,
     ) -> None:
-        """Initialize DoclingJsonReader with performance configuration.
+        """Initialize DoclingJsonReader.
 
         Args:
-            performance_config: Optional performance configuration object
             use_streaming: Force streaming mode (auto-detected if None)
             use_fast_json: Whether to use fast JSON libraries when available
             enable_caching: Whether to enable document caching
@@ -80,7 +75,6 @@ class DoclingJsonReader(BaseReader):
         """
         super().__init__(**kwargs)
 
-        self.performance_config = performance_config or PerformanceConfig()
         self.use_streaming = use_streaming
         self.use_fast_json = use_fast_json
         self.enable_caching = enable_caching
@@ -100,7 +94,7 @@ class DoclingJsonReader(BaseReader):
         )
 
     def load_data(self, file_path: Union[str, Path], **kwargs: Any) -> DoclingDocument:
-        """Load document from .docling.json file with performance optimizations.
+        """Load document from .docling.json file.
 
         Args:
             file_path: Path to the .docling.json file to load
@@ -128,9 +122,7 @@ class DoclingJsonReader(BaseReader):
                         logger.debug(f"Returning cached document for {file_path_str}")
                         cached_doc = self._document_cache[cache_key]
                         duration = (time.time() - start_time) * 1000
-                        perf_logger.log_operation_time(
-                            "cached_load", duration, {"file_path": file_path_str}
-                        )
+                        logger.debug(f"Cached load completed in {duration:.2f}ms")
                         return cached_doc
                 except (FileNotFoundError, IsADirectoryError, OSError) as e:
                     # Continue with normal flow to handle error properly
@@ -183,9 +175,6 @@ class DoclingJsonReader(BaseReader):
 
             # Log success metrics
             duration = (time.time() - start_time) * 1000
-            perf_logger.log_file_processing(
-                file_path_str, "load", duration, file_size
-            )
             logger.info(
                 f"Successfully loaded DoclingDocument from {file_path_str} in {duration:.2f}ms"
             )
@@ -198,9 +187,7 @@ class DoclingJsonReader(BaseReader):
             UnsupportedFormatError,
         ):
             duration = (time.time() - start_time) * 1000
-            perf_logger.log_operation_time(
-                "load_data_error", duration, {"file_path": file_path}
-            )
+            # Log error timing
             logger.error(
                 f"Failed to load DoclingDocument from {file_path} after {duration:.2f}ms"
             )
