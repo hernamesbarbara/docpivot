@@ -1,269 +1,165 @@
 # DocPivot
 
-DocPivot is a lightweight Python package that extends the functionality of [Docling](https://docling.io/) by enabling seamless conversion of rich-text documents to and from a variety of file formats not natively supported by Docling. It serves as a bridge for formats such as Lexical JSON, alternative Markdown dialects, and other JSON variants, while leveraging Docling's powerful `DoclingDocument` model and APIs.
+**Version 2.0.0** - Simplified document conversion API for [Docling](https://github.com/DS4SD/docling)
 
-## Features
+DocPivot provides a clean, one-line API for converting documents between formats, with special focus on Lexical Editor JSON format. Built on top of Docling's powerful document processing capabilities.
 
-- 📄 **Extended Format Support**: Read Lexical JSON and Docling JSON into unified document model
-- 🔄 **Multi-Format Export**: Serialize to Markdown, HTML, Lexical JSON, and more
-- 🎛️ **Configurable Serialization**: Customize output with parameters and component serializers
-- 🏗️ **Extensible Architecture**: Easy to add support for new formats
-- 🚀 **Docling Compatible**: Built on Docling's proven abstractions and patterns
+## ✨ What's New in v2.0
 
-## Supported Formats
+- **Simplified API**: One-line document conversion with `DocPivotEngine`
+- **30% less code**: Removed over-engineered features for a cleaner codebase
+- **Builder pattern**: Fluent configuration API for advanced use cases
+- **Smart defaults**: Works out of the box for 90% of use cases
 
-| Format | Input | Output | Status |
-|--------|--------|--------|--------|
-| Docling JSON | ✅ | ✅ | Stable |
-| Lexical JSON | ✅ | ✅ | Stable |
-| Markdown | ➖ | ✅ | Via Docling |
-| HTML | ➖ | ✅ | Via Docling |
-| Text | ➖ | ✅ | Via Docling |
-| DocTags | ➖ | ✅ | Via Docling |
+## 🚀 Quick Start
 
-## Installation
+```python
+from docpivot import DocPivotEngine
 
-### From PyPI (when available)
+# Create engine with defaults
+engine = DocPivotEngine()
+
+# Convert any DoclingDocument to Lexical JSON
+result = engine.convert_to_lexical(doc)
+print(result.content)  # Lexical Editor JSON
+
+# Convert files directly
+result = engine.convert_file("document.docling.json")
+
+# Convert PDF (requires docling package)
+result = engine.convert_pdf("document.pdf")
+```
+
+## 📦 Installation
+
 ```bash
+# Basic installation
 pip install docpivot
-```
 
-### Development Installation
-```bash
-git clone https://github.com/your-org/docpivot.git
+# Development installation (includes all tools)
+git clone https://github.com/hernamesbarbara/docpivot.git
 cd docpivot
-pip install -e .
+make install  # or: pip install -e ".[dev]"
 ```
 
-### Dependencies
-- Python 3.8+
-- docling-core
-- pydantic
+## 🔧 Advanced Configuration
 
-## Quick Start
-
-### Basic Document Loading and Conversion
+### Using the Builder Pattern
 
 ```python
-from docpivot import load_and_serialize
+from docpivot import DocPivotEngine
 
-# Convert Docling JSON to Markdown
-result = load_and_serialize("document.docling.json", "markdown")
-print(result.text)
+# Configure with builder
+engine = (DocPivotEngine.builder()
+    .with_pretty_print(indent=2)
+    .with_images(include=True)
+    .with_metadata(include=True)
+    .build())
 
-# Convert Lexical JSON to HTML
-result = load_and_serialize("document.lexical.json", "html")
-print(result.text)
+# Use preset configurations
+from docpivot import get_performance_config
+
+engine = DocPivotEngine(lexical_config=get_performance_config())
 ```
 
-### Advanced Usage with Custom Configuration
+### Available Presets
 
-```python
-from docpivot import load_document, SerializerProvider
-from docling_core.transforms.serializer.markdown import MarkdownParams
+- `get_default_lexical_config()` - Balanced defaults
+- `get_performance_config()` - Optimized for speed
+- `get_debug_config()` - Maximum information for debugging
+- `get_minimal_config()` - Smallest output size
+- `get_web_config()` - Optimized for web applications
 
-# Load document
-doc = load_document("document.docling.json")
+## 📄 Supported Formats
 
-# Configure serializer with custom parameters
-serializer = SerializerProvider().get_serializer(
-    "markdown",
-    doc=doc,
-    params=MarkdownParams(image_placeholder="[Image]")
-)
+| Format | Input | Output | Notes |
+|--------|--------|--------|-------|
+| Docling JSON | ✅ | ✅ | Native Docling format |
+| Lexical JSON | ✅ | ✅ | Lexical Editor format |
+| PDF | ✅ | ➖ | Via Docling (input only) |
+| Markdown | ➖ | ✅ | Via native Docling |
+| HTML | ➖ | ✅ | Via native Docling |
 
-result = serializer.serialize()
-print(result.text)
-```
+## 🛠️ Development
 
-### Lexical JSON Export
-
-```python
-from docpivot.io.readers import DoclingJsonReader
-from docpivot.io.serializers import LexicalDocSerializer
-
-# Load document
-reader = DoclingJsonReader()
-doc = reader.load_data("document.docling.json")
-
-# Serialize to Lexical JSON
-serializer = LexicalDocSerializer(doc=doc)
-result = serializer.serialize()
-print(result.text)  # Valid Lexical JSON
-```
-
-## Core Components
-
-### Readers
-- `DoclingJsonReader`: Load Docling JSON files into DoclingDocument
-- `LexicalJsonReader`: Convert Lexical JSON to DoclingDocument
-- `BaseReader`: Base class for implementing custom readers
-
-### Serializers
-- `LexicalDocSerializer`: Export DoclingDocument to Lexical JSON
-- Built-in Docling serializers: `MarkdownDocSerializer`, `HTMLDocSerializer`, `TextDocSerializer`
-
-### Utilities
-- `ReaderFactory`: Automatic format detection and reader selection
-- `SerializerProvider`: Get configured serializers by format name
-- High-level API functions: `load_document()`, `load_and_serialize()`
-
-## Examples
-
-The `examples/` directory contains comprehensive usage patterns:
-
-- [`basic_usage/`](examples/basic_usage/): Simple conversion workflows
-- [`advanced_usage/`](examples/advanced_usage/): Custom serializers and batch processing
-- [`integration_examples/`](examples/integration_examples/): Custom readers and testing patterns
-
-### Running Examples
+DocPivot uses a simplified development setup:
 
 ```bash
-# Basic examples
-cd examples
-python basic_usage/basic_markdown_export.py
-python basic_usage/lexical_export.py
+# Run all checks (CI entry point)
+make all
 
-# Advanced examples  
-python advanced_usage/custom_serializers.py
-python advanced_usage/batch_processing.py
+# Quick pre-commit check
+make check
+
+# Run tests with coverage
+make test
+
+# Format code
+make format
+
+# Type checking
+make type
+
+# See all commands
+make help
 ```
 
-## API Reference
+### Project Structure
 
-### High-Level API
-
-```python
-from docpivot import load_document, load_and_serialize
-
-# Load any supported document format
-doc = load_document(file_path)
-
-# One-step load and convert
-result = load_and_serialize(input_file, output_format)
+```
+docpivot/
+├── engine.py           # Core DocPivotEngine class
+├── engine_builder.py   # Fluent builder pattern
+├── defaults.py         # Smart configuration presets
+└── io/                # Readers and serializers
+    ├── readers/       # Format readers
+    └── serializers/   # Format serializers
 ```
 
-### Reader API
+### Configuration
 
-```python
-from docpivot.io.readers import DoclingJsonReader, LexicalJsonReader
+All project configuration is centralized in `pyproject.toml`:
+- Project metadata and dependencies
+- Tool configs (Black, Ruff, MyPy, pytest, Coverage)
+- Single `dev` dependency group for all development tools
 
-reader = DoclingJsonReader()
-doc = reader.load_data("document.docling.json")
-```
+## 📚 Examples
 
-### Serializer API
+See the `examples/` directory for complete examples:
 
-```python
-from docpivot.io.serializers import LexicalDocSerializer
-from docpivot.io.serializers.lexicaldocserializer import LexicalParams
+- `basic_usage.py` - Simple conversion patterns
+- `advanced_usage.py` - Batch processing and pipelines
+- `builder_pattern.py` - Configuration with builder API
+- `pdf_conversion.py` - PDF to multiple formats
 
-# Basic usage
-serializer = LexicalDocSerializer(doc=doc)
-result = serializer.serialize()
+## 🧪 Testing
 
-# With configuration
-params = LexicalParams(indent_json=True, include_metadata=True)
-serializer = LexicalDocSerializer(doc=doc, params=params)
-result = serializer.serialize()
-```
-
-## Extending DocPivot
-
-### Custom Readers
-
-```python
-from docpivot.io.readers import BaseReader
-from docling_core.types import DoclingDocument
-
-class MyFormatReader(BaseReader):
-    def can_read(self, file_path: str) -> bool:
-        return file_path.endswith('.myformat')
-    
-    def load_data(self, file_path: str) -> DoclingDocument:
-        # Implementation here
-        pass
-```
-
-### Custom Serializers
-
-```python
-from docpivot.io.serializers import BaseDocSerializer
-
-class MyFormatSerializer(BaseDocSerializer):
-    def serialize(self) -> SerializationResult:
-        # Implementation here
-        pass
-```
-
-## Testing
-
-Run the test suite:
+DocPivot follows a pragmatic TDD approach:
 
 ```bash
-# Install test dependencies
-pip install -e .[test]
-
 # Run tests
-python -m pytest tests/ -v
+make test         # With coverage
+make test-fast    # Quick, no coverage
 
-# Run with coverage
-python -m pytest tests/ --cov=docpivot --cov-report=html
+# Coverage report
+make coverage     # Generate and open HTML report
 ```
 
-## Performance
+See [TESTING.md](TESTING.md) for testing philosophy and guidelines.
 
-DocPivot is designed for efficiency:
+## 📝 License
 
-- Streaming JSON processing for large documents
-- Minimal memory overhead during conversion
-- Configurable output formatting to optimize for size vs readability
+Apache 2.0 - See LICENSE file for details.
 
-For performance optimization tips, see [`examples/advanced_usage/performance_optimization.py`](examples/advanced_usage/performance_optimization.py).
+## 🤝 Contributing
 
-## Contributing
+This is primarily a single-developer project. If you find bugs or have suggestions, please open an issue.
 
-We welcome contributions! Please see:
+## 🔗 Related Projects
 
-- [Contributing Guidelines](CONTRIBUTING.md)
-- [Development Setup](docs/development.md)
-- [Architecture Overview](docs/architecture.md)
+- [Docling](https://github.com/DS4SD/docling) - Document conversion framework
+- [Lexical](https://lexical.dev) - Extensible text editor framework
 
-### Development Setup
+---
 
-```bash
-git clone https://github.com/your-org/docpivot.git
-cd docpivot
-pip install -e .[dev]
-pre-commit install
-```
-
-## Troubleshooting
-
-### Common Issues
-
-**Q: "UnsupportedFormatError" when loading files**
-A: Ensure your file has the correct extension (`.docling.json` or `.lexical.json`) or use the ReaderFactory for automatic detection.
-
-**Q: Lexical JSON output is not valid**
-A: Check that your input document has valid structure. Enable `indent_json=True` in LexicalParams for debugging.
-
-**Q: Performance issues with large documents**
-A: Use streaming mode and disable unnecessary features like metadata inclusion.
-
-For more troubleshooting tips, see [docs/troubleshooting.md](docs/troubleshooting.md).
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Built on the excellent [Docling](https://docling.io/) framework
-- Inspired by Docling's clean API design and extensible architecture
-- Thanks to the Docling team for creating a solid foundation
-
-## Related Projects
-
-- [Docling](https://docling.io/) - The core document processing framework
-- [docling-core](https://github.com/DS4SD/docling-core) - Core document models and transforms
+**Note**: DocPivot v2.0 represents a major simplification from v1.0. If you need the older, more complex API, use version 1.0.0.

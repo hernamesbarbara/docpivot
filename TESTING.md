@@ -100,42 +100,27 @@ pytest tests/ --durations=10
 pytest tests/ -k "performance" -v
 ```
 
-### Fast Test Runner Script
-Create `run_tests.sh` for quick feedback:
+### Fast Test Execution
+Use the Makefile for all test operations:
 
 ```bash
-#!/bin/bash
-# run_tests.sh - Fast test runner with coverage
+# Run tests with coverage (full report)
+make test
 
-START=$(date +%s)
+# Run tests quickly without coverage
+make test-fast
 
-# Run tests with coverage, skip covered lines in report
-pytest tests/ \
-    --cov=docpivot \
-    --cov-report=term:skip-covered \
-    --tb=short \
-    -q
+# Generate HTML coverage report
+make coverage
 
-END=$(date +%s)
-RUNTIME=$((END-START))
+# Run all checks (format, lint, type, test)
+make all
 
-echo ""
-echo "================================"
-echo "Test runtime: ${RUNTIME}s (Target: <120s)"
-echo "================================"
-
-# Fail if tests take too long
-if [ $RUNTIME -gt 120 ]; then
-    echo "❌ Tests exceeded 120s limit!"
-    exit 1
-fi
+# Quick pre-commit check
+make check
 ```
 
-Make it executable:
-```bash
-chmod +x run_tests.sh
-./run_tests.sh
-```
+The Makefile ensures consistent test execution and includes timing information.
 
 ## Pragmatic Testing Strategy
 
@@ -254,28 +239,28 @@ def temp_output_dir(tmp_path):
 
 ### GitHub Actions Workflow
 ```yaml
-# .github/workflows/test.yml
-name: Tests
+# .github/workflows/ci.yml
+name: CI
 on: [push, pull_request]
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     - run: pip install -e ".[dev]"
-    - run: ./run_tests.sh
+    - run: make all  # Single CI entry point
 ```
 
 ### Pre-commit Hook
 ```bash
 # .git/hooks/pre-commit
 #!/bin/bash
-echo "Running tests..."
-./run_tests.sh || exit 1
+echo "Running pre-commit checks..."
+make check || exit 1
 ```
 
 ## Test Maintenance

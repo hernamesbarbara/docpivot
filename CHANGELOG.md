@@ -1,5 +1,42 @@
 # Changelog
 
+## [2.0.1] - 2024-09-15
+
+### 🔧 Project Configuration Improvements
+
+Simplified project configuration and tooling setup for better maintainability.
+
+### Changed
+- **Consolidated configuration in `pyproject.toml`**
+  - Moved all mypy configuration from `mypy.ini` to `[tool.mypy]`
+  - Single `dev` dependency group (removed redundant test/lint/all groups)
+  - Removed standalone isort config (using ruff's integrated isort)
+  - Explicit mypy `files = ["docpivot", "tests"]` instead of path configs
+- **Makefile as single command hub**
+  - `make all` - Single CI/CD entry point
+  - `make check` - Quick pre-commit validation
+  - Removed `run_tests.sh` (redundant with Makefile)
+- **Improved examples**
+  - Reduced from 17 scattered examples to 4 focused ones
+  - Added `pdf_conversion.py` demonstrating PDF → multiple formats
+  - All examples now showcase v2.0 simplified API
+- **Documentation updates**
+  - Updated README.md to highlight v2.0 simplified API
+  - Added PROJECT_CONFIG.md documenting configuration philosophy
+  - Updated TESTING.md with TDD workflow and pragmatic testing approach
+
+### Fixed
+- Fixed `duration` variable bug in `lexicaldocserializer.py`
+- Fixed safe attribute access for `document.body.items` in `engine.py`
+- Removed references to deleted modules in mypy config
+
+### Removed
+- `mypy.ini` (moved to pyproject.toml)
+- `run_tests.sh` (use Makefile instead)
+- 13 outdated example files
+- Redundant dependency groups (test/lint/all)
+- Standalone isort configuration
+
 ## [2.0.0] - 2024-09-15
 
 ### 🎉 Major Refactoring - Simplified API

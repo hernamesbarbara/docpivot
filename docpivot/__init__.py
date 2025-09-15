@@ -1,6 +1,6 @@
 """DocPivot - Simple document format conversion for Docling."""
 
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 
 # Core engine (primary interface)
 from docpivot.engine import DocPivotEngine, ConversionResult
