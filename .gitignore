@@ -293,3 +293,6 @@ output.log
 # DocPivot output files (temporary test/example outputs)
 output_*.md
 output_*.json
+tests_old/
+output/
+docpivot.code-workspace

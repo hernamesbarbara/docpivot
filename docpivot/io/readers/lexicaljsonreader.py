@@ -19,12 +19,10 @@ from .exceptions import (
 from docpivot.validation import validate_lexical_json, validate_json_content
 from docpivot.logging_config import (
     get_logger,
-    PerformanceLogger,
     log_exception_with_context,
 )
 
 logger = get_logger(__name__)
-perf_logger = PerformanceLogger(logger)
 
 
 class LexicalJsonReader(BaseReader):
@@ -123,12 +121,9 @@ class LexicalJsonReader(BaseReader):
             try:
                 document = self._convert_lexical_to_docling(json_data, file_path_str)
 
-                # Log successful completion with performance metrics
+                # Log successful completion
                 duration = (time.time() - start_time) * 1000
-                perf_logger.log_file_processing(
-                    file_path_str, "load", duration, file_size
-                )
-                logger.info(f"Successfully loaded Lexical JSON from {file_path_str}")
+                logger.info(f"Successfully loaded Lexical JSON from {file_path_str} in {duration:.2f}ms")
 
                 return document
 

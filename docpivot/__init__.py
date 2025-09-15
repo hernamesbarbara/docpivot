@@ -1,57 +1,44 @@
-"""DocPivot - Lightweight Python package extending Docling.
+"""DocPivot - Simple document format conversion for Docling."""
 
-Provides additional format readers and serializers with high-level workflow functions
-and comprehensive extensibility system for custom formats.
-"""
+__version__ = "2.0.0"
 
-__version__ = "1.0.0"
-
-# Core classes for advanced usage
-from docpivot.io.readers.basereader import BaseReader
-from docpivot.io.serializers.serializerprovider import SerializerProvider
-from docpivot.workflows import load_document, load_and_serialize, convert_document
-
-# Specific readers and serializers mentioned in PRD
-from docpivot.io.readers.doclingjsonreader import DoclingJsonReader
-from docpivot.io.readers.lexicaljsonreader import LexicalJsonReader
-from docpivot.io.serializers.lexicaldocserializer import LexicalDocSerializer
-
-# Extensibility API
-from docpivot.extensibility import (
-    get_extensibility_manager,
-    register_format,
-    load_plugin,
-    discover_formats,
-    list_supported_formats,
-    validate_implementation,
+# Core engine (primary interface)
+from docpivot.engine import DocPivotEngine, ConversionResult
+from docpivot.engine_builder import DocPivotEngineBuilder
+from docpivot.defaults import (
+    get_default_lexical_config,
+    get_performance_config,
+    get_debug_config,
+    get_minimal_config,
+    get_full_config,
+    get_web_config,
+    merge_configs,
 )
 
-# Base classes for custom formats
-from docpivot.io.readers.custom_reader_base import CustomReaderBase
-from docpivot.io.serializers.custom_serializer_base import CustomSerializerBase
-from docpivot.io.plugins import FormatPlugin
+# Specific implementations for advanced users
+from docpivot.io.serializers.lexicaldocserializer import LexicalDocSerializer
+from docpivot.io.readers.doclingjsonreader import DoclingJsonReader
+from docpivot.io.readers.lexicaljsonreader import LexicalJsonReader
+from docpivot.io.readers.basereader import BaseReader
 
 __all__ = [
-    # High-level API functions (primary interface)
-    "load_document",
-    "load_and_serialize",
-    "convert_document",
-    # Core classes for advanced usage
-    "BaseReader",
-    "SerializerProvider",
-    # Specific readers and serializers from PRD
+    # New simplified API (primary)
+    "DocPivotEngine",
+    "ConversionResult",
+    "DocPivotEngineBuilder",
+
+    # Configuration helpers
+    "get_default_lexical_config",
+    "get_performance_config",
+    "get_debug_config",
+    "get_minimal_config",
+    "get_full_config",
+    "get_web_config",
+    "merge_configs",
+
+    # Low-level components (advanced users)
+    "LexicalDocSerializer",
     "DoclingJsonReader",
     "LexicalJsonReader",
-    "LexicalDocSerializer",
-    # Extensibility API (main interface for custom formats)
-    "get_extensibility_manager",
-    "register_format",
-    "load_plugin",
-    "discover_formats",
-    "list_supported_formats",
-    "validate_implementation",
-    # Base classes for custom format development
-    "CustomReaderBase",
-    "CustomSerializerBase",
-    "FormatPlugin",
+    "BaseReader",
 ]

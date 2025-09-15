@@ -2,7 +2,6 @@
 
 # Import extensibility components for easy access
 from .format_registry import FormatRegistry, get_format_registry
-from .plugins import FormatPlugin, PluginManager, get_plugin_manager
 from .validation import FormatValidator, ValidationResult, RoundTripTestResult
 from .testing import CustomFormatTestBase, FormatTestSuite
 
@@ -17,9 +16,6 @@ __all__ = [
     # Registry and plugin system
     "FormatRegistry",
     "get_format_registry",
-    "FormatPlugin",
-    "PluginManager",
-    "get_plugin_manager",
     # Validation and testing
     "FormatValidator",
     "ValidationResult",
