@@ -296,3 +296,4 @@ output_*.json
 tests_old/
 output/
 docpivot.code-workspace
+FEAT_docpivot_2.0.1_migration_plan.md
