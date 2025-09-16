@@ -12,12 +12,14 @@ from docpivot import DocPivotEngine
 # Optional imports for different input types
 try:
     from docling_core.types import DoclingDocument
+
     HAS_DOCLING_CORE = True
 except ImportError:
     HAS_DOCLING_CORE = False
 
 try:
-    from docling.document_converter import DocumentConverter
+    import docling  # Test for availability  # noqa: F401
+
     HAS_DOCLING = True
 except ImportError:
     HAS_DOCLING = False
@@ -70,9 +72,7 @@ def example_2_file_conversion():
     if input_file.exists():
         output_file.parent.mkdir(parents=True, exist_ok=True)
         result = engine.convert_file(
-            input_file,
-            output_path=output_file,
-            pretty=True  # Make output human-readable
+            input_file, output_path=output_file, pretty=True  # Make output human-readable
         )
         print(f"✓ Saved to: {result.metadata['output_path']}")
 
@@ -122,7 +122,7 @@ def example_4_custom_configuration():
             "include_metadata": True,
             "handle_images": True,
             "handle_tables": True,
-            "handle_lists": True
+            "handle_lists": True,
         }
     )
 
@@ -134,7 +134,7 @@ def example_4_custom_configuration():
     # Use it for conversion
     if HAS_DOCLING_CORE:
         doc = DoclingDocument(name="custom_example")
-        result = engine.convert_to_lexical(doc)
+        engine.convert_to_lexical(doc)
         print("✓ Converted with custom settings")
 
 

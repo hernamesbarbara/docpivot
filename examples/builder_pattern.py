@@ -10,6 +10,7 @@ from docpivot import DocPivotEngine
 # Optional imports
 try:
     from docling_core.types import DoclingDocument
+
     HAS_DOCLING_CORE = True
 except ImportError:
     HAS_DOCLING_CORE = False
@@ -36,9 +37,7 @@ def example_2_pretty_print_builder():
     print("=" * 60)
 
     # Build with pretty printing
-    engine = (DocPivotEngine.builder()
-              .with_pretty_print(indent=4)
-              .build())
+    engine = DocPivotEngine.builder().with_pretty_print(indent=4).build()
 
     print("✓ Created engine with pretty printing:")
     print(f"  Pretty: {engine.lexical_config['pretty']}")
@@ -59,9 +58,7 @@ def example_3_performance_builder():
     print("=" * 60)
 
     # Build for performance
-    engine = (DocPivotEngine.builder()
-              .with_performance_mode()
-              .build())
+    engine = DocPivotEngine.builder().with_performance_mode().build()
 
     print("✓ Created engine optimized for performance:")
     print(f"  Pretty printing: {engine.lexical_config['pretty']}")
@@ -77,9 +74,7 @@ def example_4_debug_builder():
     print("=" * 60)
 
     # Build for debugging
-    engine = (DocPivotEngine.builder()
-              .with_debug_mode()
-              .build())
+    engine = DocPivotEngine.builder().with_debug_mode().build()
 
     print("✓ Created engine in debug mode:")
     print(f"  Pretty printing: {engine.lexical_config['pretty']}")
@@ -95,11 +90,13 @@ def example_5_custom_builder():
     print("=" * 60)
 
     # Build with specific features
-    engine = (DocPivotEngine.builder()
-              .with_images(include=True)
-              .with_metadata(include=False)
-              .with_default_format("lexical")
-              .build())
+    engine = (
+        DocPivotEngine.builder()
+        .with_images(include=True)
+        .with_metadata(include=False)
+        .with_default_format("lexical")
+        .build()
+    )
 
     print("✓ Created engine with custom features:")
     print(f"  Images: {engine.lexical_config['handle_images']}")
@@ -114,12 +111,14 @@ def example_6_chained_builder():
     print("=" * 60)
 
     # Chain multiple configurations
-    engine = (DocPivotEngine.builder()
-              .with_pretty_print(indent=2)        # Pretty with 2-space indent
-              .with_images(include=True)          # Include images
-              .with_metadata(include=True)        # Include metadata
-              .with_default_format("lexical")     # Set default format
-              .build())
+    engine = (
+        DocPivotEngine.builder()
+        .with_pretty_print(indent=2)  # Pretty with 2-space indent
+        .with_images(include=True)  # Include images
+        .with_metadata(include=True)  # Include metadata
+        .with_default_format("lexical")  # Set default format
+        .build()
+    )
 
     print("✓ Created engine with chained configuration")
     print("\nConfiguration summary:")
@@ -149,7 +148,7 @@ def example_7_preset_configurations():
         "Debug": get_debug_config(),
         "Minimal": get_minimal_config(),
         "Full": get_full_config(),
-        "Web": get_web_config()
+        "Web": get_web_config(),
     }
 
     print("Available preset configurations:\n")
@@ -161,10 +160,12 @@ def example_7_preset_configurations():
         print()
 
     # Use a preset with builder
-    engine = (DocPivotEngine.builder()
-              .with_lexical_config(get_web_config())
-              .with_pretty_print()  # Override specific setting
-              .build())
+    (
+        DocPivotEngine.builder()
+        .with_lexical_config(get_web_config())
+        .with_pretty_print()  # Override specific setting
+        .build()
+    )
 
     print("✓ Created engine with web preset + pretty printing")
 
@@ -176,21 +177,12 @@ def example_8_builder_vs_direct():
     print("=" * 60)
 
     # Method 1: Direct instantiation with config dict
-    engine1 = DocPivotEngine(
-        lexical_config={
-            "pretty": True,
-            "indent": 4,
-            "include_metadata": True
-        }
-    )
+    DocPivotEngine(lexical_config={"pretty": True, "indent": 4, "include_metadata": True})
     print("Method 1 - Direct instantiation:")
     print("  engine = DocPivotEngine(lexical_config={...})")
 
     # Method 2: Builder pattern
-    engine2 = (DocPivotEngine.builder()
-               .with_pretty_print(indent=4)
-               .with_metadata(include=True)
-               .build())
+    (DocPivotEngine.builder().with_pretty_print(indent=4).with_metadata(include=True).build())
     print("\nMethod 2 - Builder pattern:")
     print("  engine = DocPivotEngine.builder()")
     print("           .with_pretty_print(indent=4)")
@@ -231,7 +223,7 @@ def example_9_conditional_builder():
     builder = builder.with_default_format(output_format)
 
     # Build the engine
-    engine = builder.build()
+    builder.build()
 
     print("\n✓ Built engine with conditional config:")
     print(f"  Debug: {is_development}")

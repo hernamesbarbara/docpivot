@@ -8,14 +8,14 @@ from docpivot.engine import DocPivotEngine
 class DocPivotEngineBuilder:
     """Fluent builder for DocPivotEngine with advanced configuration."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the builder with default values."""
-        self._lexical_config = {}
+        self._lexical_config: dict[str, Any] = {}
         self._default_format = "lexical"
-        self._custom_serializers = {}
-        self._custom_readers = {}
+        self._custom_serializers: dict[str, Any] = {}
+        self._custom_readers: dict[str, Any] = {}
 
-    def with_lexical_config(self, config: dict[str, Any]) -> 'DocPivotEngineBuilder':
+    def with_lexical_config(self, config: dict[str, Any]) -> "DocPivotEngineBuilder":
         """Set Lexical serialization configuration.
 
         Args:
@@ -27,7 +27,7 @@ class DocPivotEngineBuilder:
         self._lexical_config.update(config)
         return self
 
-    def with_pretty_print(self, indent: int = 2) -> 'DocPivotEngineBuilder':
+    def with_pretty_print(self, indent: int = 2) -> "DocPivotEngineBuilder":
         """Enable pretty printing with specified indentation.
 
         Args:
@@ -40,7 +40,7 @@ class DocPivotEngineBuilder:
         self._lexical_config["indent"] = indent
         return self
 
-    def with_default_format(self, format: str) -> 'DocPivotEngineBuilder':
+    def with_default_format(self, format: str) -> "DocPivotEngineBuilder":
         """Set the default output format.
 
         Args:
@@ -52,7 +52,7 @@ class DocPivotEngineBuilder:
         self._default_format = format
         return self
 
-    def with_custom_serializer(self, format: str, serializer) -> 'DocPivotEngineBuilder':
+    def with_custom_serializer(self, format: str, serializer: Any) -> "DocPivotEngineBuilder":
         """Register a custom serializer for a format.
 
         Args:
@@ -68,7 +68,7 @@ class DocPivotEngineBuilder:
         self._custom_serializers[format] = serializer
         return self
 
-    def with_custom_reader(self, extension: str, reader) -> 'DocPivotEngineBuilder':
+    def with_custom_reader(self, extension: str, reader: Any) -> "DocPivotEngineBuilder":
         """Register a custom reader for a file extension.
 
         Args:
@@ -84,7 +84,7 @@ class DocPivotEngineBuilder:
         self._custom_readers[extension] = reader
         return self
 
-    def with_images(self, include: bool = True) -> 'DocPivotEngineBuilder':
+    def with_images(self, include: bool = True) -> "DocPivotEngineBuilder":
         """Configure whether to include images in the output.
 
         Args:
@@ -96,7 +96,7 @@ class DocPivotEngineBuilder:
         self._lexical_config["handle_images"] = include
         return self
 
-    def with_metadata(self, include: bool = True) -> 'DocPivotEngineBuilder':
+    def with_metadata(self, include: bool = True) -> "DocPivotEngineBuilder":
         """Configure whether to include metadata in the output.
 
         Args:
@@ -108,31 +108,35 @@ class DocPivotEngineBuilder:
         self._lexical_config["include_metadata"] = include
         return self
 
-    def with_performance_mode(self) -> 'DocPivotEngineBuilder':
+    def with_performance_mode(self) -> "DocPivotEngineBuilder":
         """Configure for optimal performance (minimal output).
 
         Returns:
             Self for method chaining
         """
-        self._lexical_config.update({
-            "pretty": False,
-            "include_metadata": False,
-            "handle_images": False,
-        })
+        self._lexical_config.update(
+            {
+                "pretty": False,
+                "include_metadata": False,
+                "handle_images": False,
+            }
+        )
         return self
 
-    def with_debug_mode(self) -> 'DocPivotEngineBuilder':
+    def with_debug_mode(self) -> "DocPivotEngineBuilder":
         """Configure for debugging (maximum information).
 
         Returns:
             Self for method chaining
         """
-        self._lexical_config.update({
-            "pretty": True,
-            "indent": 4,
-            "include_metadata": True,
-            "handle_images": True,
-        })
+        self._lexical_config.update(
+            {
+                "pretty": True,
+                "indent": 4,
+                "include_metadata": True,
+                "handle_images": True,
+            }
+        )
         return self
 
     def build(self) -> DocPivotEngine:
@@ -141,9 +145,8 @@ class DocPivotEngineBuilder:
         Returns:
             Configured DocPivotEngine instance
         """
-        engine = DocPivotEngine(
-            lexical_config=self._lexical_config,
-            default_format=self._default_format
+        return DocPivotEngine(
+            lexical_config=self._lexical_config, default_format=self._default_format
         )
 
         # Future: Register custom serializers and readers if any
@@ -151,5 +154,3 @@ class DocPivotEngineBuilder:
         #     engine.register_serializer(format, serializer)
         # for extension, reader in self._custom_readers.items():
         #     engine.register_reader(extension, reader)
-
-        return engine

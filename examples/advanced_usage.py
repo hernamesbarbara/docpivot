@@ -14,6 +14,7 @@ from docpivot import DocPivotEngine, get_debug_config, get_performance_config
 # Optional imports
 try:
     from docling_core.types import DoclingDocument
+
     HAS_DOCLING_CORE = True
 except ImportError:
     HAS_DOCLING_CORE = False
@@ -48,17 +49,16 @@ def batch_processing_example():
             output_file = output_dir / f"{input_file.stem}.lexical.json"
 
             # Convert file
-            result = engine.convert_file(
-                input_file,
-                output_path=output_file
-            )
+            result = engine.convert_file(input_file, output_path=output_file)
 
-            results.append({
-                "input": input_file.name,
-                "output": output_file.name,
-                "size": len(result.content),
-                "elements": result.metadata.get("elements_count", 0)
-            })
+            results.append(
+                {
+                    "input": input_file.name,
+                    "output": output_file.name,
+                    "size": len(result.content),
+                    "elements": result.metadata.get("elements_count", 0),
+                }
+            )
 
             print(f"✓ Processed: {input_file.name}")
 
@@ -152,17 +152,16 @@ def custom_processing_pipeline():
             try:
                 content_data = json.loads(result.content)
                 node_count = self._count_nodes(content_data)
-            except:
+            except Exception:
                 node_count = 0
 
             return {
                 "file": info["file"].name,
                 "original_size": info["size"],
                 "converted_size": len(result.content),
-                "compression_ratio": len(result.content) / info["size"]
-                if info["size"] > 0 else 0,
+                "compression_ratio": len(result.content) / info["size"] if info["size"] > 0 else 0,
                 "node_count": node_count,
-                "format": result.format
+                "format": result.format,
             }
 
         def _count_nodes(self, data: Any) -> int:
@@ -221,10 +220,7 @@ def memory_efficient_processing():
             output_path = Path("output/large_converted.json")
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
-            result = engine.convert_file(
-                large_file,
-                output_path=output_path
-            )
+            engine.convert_file(large_file, output_path=output_path)
 
             file_size_mb = output_path.stat().st_size / 1_000_000
             print(f"✓ Processed large file: {file_size_mb:.2f} MB")
@@ -248,7 +244,7 @@ def error_handling_example():
 
     # Example 1: Handle missing file
     try:
-        result = engine.convert_file("non_existent.json")
+        engine.convert_file("non_existent.json")
     except FileNotFoundError as e:
         print(f"✓ Caught FileNotFoundError: {e}")
 
@@ -256,14 +252,14 @@ def error_handling_example():
     invalid_file = Path("data/invalid.txt")
     if invalid_file.exists():
         try:
-            result = engine.convert_file(invalid_file)
+            engine.convert_file(invalid_file)
         except Exception as e:
             print(f"✓ Caught format error: {type(e).__name__}")
 
     # Example 3: Handle PDF without docling
     if not HAS_DOCLING_CORE:
         try:
-            result = engine.convert_pdf("sample.pdf")
+            engine.convert_pdf("sample.pdf")
         except ImportError:
             print("✓ Caught ImportError for PDF: Package not installed")
 

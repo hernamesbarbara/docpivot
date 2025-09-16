@@ -39,14 +39,11 @@ class TestIntegrationWithRealFiles:
         assert result.metadata.get("output_path") == str(output_path)
 
         # Verify saved content is valid JSON
-        with open(output_path) as f:
+        with Path(output_path).open() as f:
             lexical_data = json.load(f)
             assert "root" in lexical_data
 
-    @pytest.mark.skipif(
-        not Path("data/pdf").exists(),
-        reason="PDF test data not available"
-    )
+    @pytest.mark.skipif(not Path("data/pdf").exists(), reason="PDF test data not available")
     def test_pdf_conversion_requires_docling(self, sample_pdf_path):
         """Test PDF conversion (requires optional docling package)."""
         if not sample_pdf_path or not sample_pdf_path.exists():
@@ -55,7 +52,8 @@ class TestIntegrationWithRealFiles:
         engine = DocPivotEngine()
 
         try:
-            import docling
+            import docling  # noqa: F401
+
             # If docling is available, test conversion
             result = engine.convert_pdf(sample_pdf_path)
             assert isinstance(result, ConversionResult)

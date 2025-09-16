@@ -26,7 +26,6 @@ __all__ = [
     "DocPivotEngine",
     "ConversionResult",
     "DocPivotEngineBuilder",
-
     # Configuration helpers
     "get_default_lexical_config",
     "get_performance_config",
@@ -35,7 +34,6 @@ __all__ = [
     "get_full_config",
     "get_web_config",
     "merge_configs",
-
     # Low-level components (advanced users)
     "LexicalDocSerializer",
     "DoclingJsonReader",

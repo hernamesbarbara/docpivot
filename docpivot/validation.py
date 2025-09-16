@@ -99,9 +99,7 @@ class DocumentValidator:
 
         logger.debug("DoclingDocument validation completed successfully")
 
-    def _validate_docling_schema(
-        self, doc_dict: dict[str, Any], file_path: str | None
-    ) -> None:
+    def _validate_docling_schema(self, doc_dict: dict[str, Any], file_path: str | None) -> None:
         """Validate DoclingDocument schema fields.
 
         Args:
@@ -143,9 +141,7 @@ class DocumentValidator:
                 f"{self.SUPPORTED_VERSIONS}. Processing may fail."
             )
 
-    def _validate_docling_content(
-        self, doc_dict: dict[str, Any], file_path: str | None
-    ) -> None:
+    def _validate_docling_content(self, doc_dict: dict[str, Any], file_path: str | None) -> None:
         """Validate DoclingDocument content structure.
 
         Args:
@@ -225,9 +221,7 @@ class LexicalValidator:
             ValidationError: If Lexical JSON structure is invalid
             SchemaValidationError: If schema validation fails
         """
-        logger.debug(
-            f"Validating Lexical JSON structure{f' for {file_path}' if file_path else ''}"
-        )
+        logger.debug(f"Validating Lexical JSON structure{f' for {file_path}' if file_path else ''}")
 
         if not isinstance(json_data, dict):
             raise ValidationError(
@@ -259,9 +253,7 @@ class LexicalValidator:
 
         logger.debug("Lexical JSON validation completed successfully")
 
-    def _validate_lexical_root_node(
-        self, root_node: Any, file_path: str | None
-    ) -> None:
+    def _validate_lexical_root_node(self, root_node: Any, file_path: str | None) -> None:
         """Validate Lexical root node structure.
 
         Args:
@@ -284,15 +276,11 @@ class LexicalValidator:
             raise ValidationError(
                 f"Lexical JSON root node missing required fields{f' in {file_path}' if file_path else ''}: "
                 f"{', '.join(sorted(missing_fields))}",
-                field_errors={
-                    "root": [f"Missing fields: {', '.join(sorted(missing_fields))}"]
-                },
+                field_errors={"root": [f"Missing fields: {', '.join(sorted(missing_fields))}"]},
                 context={"file_path": file_path},
             )
 
-    def _validate_lexical_nodes(
-        self, nodes: list[Any], file_path: str | None
-    ) -> None:
+    def _validate_lexical_nodes(self, nodes: list[Any], file_path: str | None) -> None:
         """Validate Lexical node hierarchy.
 
         Args:
@@ -410,9 +398,7 @@ class ParameterValidator:
             ) from e
 
         if must_exist and not path.exists():
-            raise FileAccessError(
-                f"File not found: {file_path}", str(file_path), "check_existence"
-            )
+            raise FileAccessError(f"File not found: {file_path}", str(file_path), "check_existence")
 
         if must_exist and must_be_file and path.is_dir():
             raise FileAccessError(
@@ -442,9 +428,7 @@ class ParameterValidator:
 class JsonValidator:
     """Validator for JSON content and structure."""
 
-    def validate_json_content(
-        self, content: str, file_path: str | None = None
-    ) -> dict[str, Any]:
+    def validate_json_content(self, content: str, file_path: str | None = None) -> dict[str, Any]:
         """Validate and parse JSON content.
 
         Args:
@@ -457,9 +441,7 @@ class JsonValidator:
         Raises:
             ValidationError: If JSON is invalid
         """
-        logger.debug(
-            f"Validating JSON content{f' from {file_path}' if file_path else ''}"
-        )
+        logger.debug(f"Validating JSON content{f' from {file_path}' if file_path else ''}")
 
         if not isinstance(content, str):
             raise ValidationError(
@@ -521,9 +503,7 @@ def validate_docling_document(
     document_validator.validate_docling_document(doc_data, file_path)
 
 
-def validate_lexical_json(
-    json_data: dict[str, Any], file_path: str | None = None
-) -> None:
+def validate_lexical_json(json_data: dict[str, Any], file_path: str | None = None) -> None:
     """Validate Lexical JSON structure.
 
     Args:
@@ -561,9 +541,7 @@ def validate_file_path(
     )
 
 
-def validate_json_content(
-    content: str, file_path: str | None = None
-) -> dict[str, Any]:
+def validate_json_content(content: str, file_path: str | None = None) -> dict[str, Any]:
     """Validate and parse JSON content.
 
     Args:

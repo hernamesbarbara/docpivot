@@ -67,13 +67,9 @@ class ValidationResult:
     @property
     def has_warnings(self) -> bool:
         """Check if there are any warnings."""
-        return any(
-            issue.severity == ValidationSeverity.WARNING for issue in self.issues
-        )
+        return any(issue.severity == ValidationSeverity.WARNING for issue in self.issues)
 
-    def get_issues_by_severity(
-        self, severity: ValidationSeverity
-    ) -> list[ValidationIssue]:
+    def get_issues_by_severity(self, severity: ValidationSeverity) -> list[ValidationIssue]:
         """Get issues by severity level."""
         return [issue for issue in self.issues if issue.severity == severity]
 
@@ -290,13 +286,9 @@ class FormatValidator:
             for issue in issues
         )
 
-        return ValidationResult(
-            is_valid=is_valid, issues=issues, tested_features=tested_features
-        )
+        return ValidationResult(is_valid=is_valid, issues=issues, tested_features=tested_features)
 
-    def validate_serializer(
-        self, serializer_class: type[BaseDocSerializer]
-    ) -> ValidationResult:
+    def validate_serializer(self, serializer_class: type[BaseDocSerializer]) -> ValidationResult:
         """Validate a serializer implementation.
 
         Args:
@@ -401,9 +393,7 @@ class FormatValidator:
             # Test file_extension property
             try:
                 file_extension = serializer_instance.file_extension
-                if not isinstance(file_extension, str) or not file_extension.startswith(
-                    "."
-                ):
+                if not isinstance(file_extension, str) or not file_extension.startswith("."):
                     issues.append(
                         ValidationIssue(
                             ValidationSeverity.ERROR,
@@ -466,9 +456,7 @@ class FormatValidator:
             for issue in issues
         )
 
-        return ValidationResult(
-            is_valid=is_valid, issues=issues, tested_features=tested_features
-        )
+        return ValidationResult(is_valid=is_valid, issues=issues, tested_features=tested_features)
 
     def test_round_trip(
         self,
@@ -491,7 +479,7 @@ class FormatValidator:
             if test_file:
                 # Use provided test file
                 doc = reader.load_data(test_file)
-                with open(test_file, encoding="utf-8") as f:
+                with Path(test_file).open(encoding="utf-8") as f:
                     original_content = f.read()
             else:
                 # Create simple test document
@@ -510,12 +498,11 @@ class FormatValidator:
 
             # Step 2: Serialize document
             # For serializers that need doc parameter, create new instance
+            from contextlib import suppress
+
             if hasattr(serializer.__class__, "__init__"):
-                try:
+                with suppress(Exception):
                     serializer = serializer.__class__(doc=doc)
-                except Exception:
-                    # Fallback to existing instance
-                    pass
 
             serialize_result = serializer.serialize()
             serialized_content = serialize_result.text
@@ -567,10 +554,7 @@ class FormatValidator:
         }
 
         # Perform round-trip test if both validations passed
-        if (
-            results["reader_validation"].is_valid
-            and results["serializer_validation"].is_valid
-        ):
+        if results["reader_validation"].is_valid and results["serializer_validation"].is_valid:
             try:
                 reader = reader_class()
 
@@ -587,9 +571,7 @@ class FormatValidator:
                 )
                 serializer = serializer_class(doc=empty_doc)
 
-                results["round_trip_test"] = self.test_round_trip(
-                    reader, serializer, test_file
-                )
+                results["round_trip_test"] = self.test_round_trip(reader, serializer, test_file)
             except Exception as e:
                 results["compatibility_issues"].append(
                     f"Failed to create instances for round-trip test: {e}"

@@ -6,7 +6,7 @@ import time
 from collections.abc import Generator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol, Union
+from typing import Any, Protocol
 
 from docling_core.transforms.serializer.base import SerializationResult
 from docling_core.transforms.serializer.common import BaseDocSerializer
@@ -39,8 +39,8 @@ from docpivot.validation import validate_docling_document
 logger = get_logger(__name__)
 
 # Type aliases for method parameters
-TextItemType = Union[SectionHeaderItem, TextItem]
-GroupItemType = Union[OrderedList, UnorderedList, GroupItem]
+TextItemType = SectionHeaderItem | TextItem
+GroupItemType = OrderedList | UnorderedList | GroupItem
 
 # Constants for Lexical JSON structure
 LEXICAL_VERSION = 1
@@ -144,9 +144,7 @@ class LexicalParams:
 class ComponentSerializer(Protocol):
     """Protocol for component serializers."""
 
-    def serialize(
-        self, item: Any, params: LexicalParams | None = None
-    ) -> dict[str, Any]:
+    def serialize(self, item: Any, params: LexicalParams | None = None) -> dict[str, Any]:
         """Serialize a component to Lexical node format."""
         ...
 
@@ -167,16 +165,8 @@ class ImageSerializer:
             Lexical image node dictionary
         """
         # Handle missing or malformed image data
-        src = (
-            getattr(image_item, "image_path", "")
-            or getattr(image_item, "path", "")
-            or ""
-        )
-        alt_text = (
-            getattr(image_item, "alt_text", "")
-            or getattr(image_item, "caption", "")
-            or ""
-        )
+        src = getattr(image_item, "image_path", "") or getattr(image_item, "path", "") or ""
+        alt_text = getattr(image_item, "alt_text", "") or getattr(image_item, "caption", "") or ""
 
         # Get dimensions if available
         width = getattr(image_item, "width", None)
@@ -243,7 +233,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         try:
             self._json_encoder = self._select_json_encoder()
             self._node_cache: dict[str, Any] | None = (
-                {} if getattr(self.params, 'cache_node_creation', False) else None
+                {} if getattr(self.params, "cache_node_creation", False) else None
             )
         except AttributeError:
             # Handle invalid params gracefully - will be caught in validation
@@ -260,6 +250,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         # Try fast JSON libraries in order of preference
         try:
             import orjson
+
             logger.debug("Using orjson for JSON encoding")
             return orjson
         except ImportError:
@@ -267,6 +258,7 @@ class LexicalDocSerializer(BaseDocSerializer):
 
         try:
             import ujson
+
             logger.debug("Using ujson for JSON encoding")
             return ujson
         except ImportError:
@@ -341,9 +333,7 @@ class LexicalDocSerializer(BaseDocSerializer):
             # Performance metrics removed - simplified implementation
             duration = (time.time() - self._start_time) * 1000
 
-            logger.info(
-                f"Lexical serialization complete: {duration:.2f}ms, {len(json_text)} chars"
-            )
+            logger.info(f"Lexical serialization complete: {duration:.2f}ms, {len(json_text)} chars")
 
             # Final progress update
             if self.params.progress_callback:
@@ -455,16 +445,21 @@ class LexicalDocSerializer(BaseDocSerializer):
 
         # Validate boolean parameters
         bool_params = [
-            "include_metadata", "preserve_formatting", "indent_json",
-            "use_fast_json", "parallel_processing", "memory_efficient_mode",
-            "cache_node_creation", "optimize_text_formatting", "skip_validation"
+            "include_metadata",
+            "preserve_formatting",
+            "indent_json",
+            "use_fast_json",
+            "parallel_processing",
+            "memory_efficient_mode",
+            "cache_node_creation",
+            "optimize_text_formatting",
+            "skip_validation",
         ]
         for param_name in bool_params:
             param_value = getattr(self.params, param_name, None)
             if param_value is not None and not isinstance(param_value, bool):
                 raise ConfigurationError(
-                    f"Invalid {param_name} parameter: {param_value}. "
-                    f"Must be a boolean value.",
+                    f"Invalid {param_name} parameter: {param_value}. " f"Must be a boolean value.",
                     invalid_parameters=[param_name],
                     valid_options={param_name: ["true", "false"]},
                     context={f"provided_{param_name}": param_value},
@@ -493,16 +488,15 @@ class LexicalDocSerializer(BaseDocSerializer):
             )
 
         # Validate custom root attributes
-        if self.params.custom_root_attributes is not None:
-            if not isinstance(self.params.custom_root_attributes, dict):
-                raise ConfigurationError(
-                    f"Invalid custom_root_attributes: must be a dictionary, "
-                    f"got {type(self.params.custom_root_attributes).__name__}",
-                    invalid_parameters=["custom_root_attributes"],
-                    context={
-                        "actual_type": type(self.params.custom_root_attributes).__name__
-                    },
-                )
+        if self.params.custom_root_attributes is not None and not isinstance(
+            self.params.custom_root_attributes, dict
+        ):
+            raise ConfigurationError(
+                f"Invalid custom_root_attributes: must be a dictionary, "
+                f"got {type(self.params.custom_root_attributes).__name__}",
+                invalid_parameters=["custom_root_attributes"],
+                context={"actual_type": type(self.params.custom_root_attributes).__name__},
+            )
 
         logger.debug("Serializer parameters validation completed successfully")
 
@@ -531,8 +525,7 @@ class LexicalDocSerializer(BaseDocSerializer):
             # Process chunks in parallel
             with ThreadPoolExecutor(max_workers=self.params.max_workers) as executor:
                 futures = [
-                    executor.submit(self._process_body_children_chunk, chunk)
-                    for chunk in chunks
+                    executor.submit(self._process_body_children_chunk, chunk) for chunk in chunks
                 ]
 
                 lexical_children = []
@@ -592,8 +585,7 @@ class LexicalDocSerializer(BaseDocSerializer):
             # Handle any unexpected errors during transformation
             logger.error(f"Unexpected error during Lexical transformation: {e}")
             raise TransformationError(
-                f"Unexpected error during DoclingDocument to Lexical "
-                f"transformation: {e}",
+                f"Unexpected error during DoclingDocument to Lexical " f"transformation: {e}",
                 transformation_type="docling_to_lexical",
                 recovery_suggestions=[
                     "Check the document structure for validity",
@@ -604,9 +596,7 @@ class LexicalDocSerializer(BaseDocSerializer):
                 cause=e,
             ) from e
 
-    def _build_final_structure(
-        self, lexical_children: list[dict[str, Any]]
-    ) -> dict[str, Any]:
+    def _build_final_structure(self, lexical_children: list[dict[str, Any]]) -> dict[str, Any]:
         """Build final Lexical structure with metadata."""
         # Create the root Lexical structure
         root_node = {
@@ -662,9 +652,7 @@ class LexicalDocSerializer(BaseDocSerializer):
                     f"Failed to include document metadata: {e}. Proceeding without metadata."
                 )
 
-        logger.debug(
-            "DoclingDocument to Lexical transformation completed successfully"
-        )
+        logger.debug("DoclingDocument to Lexical transformation completed successfully")
         return lexical_data
 
     def _encode_json(self, data: dict[str, Any]) -> str:
@@ -675,10 +663,7 @@ class LexicalDocSerializer(BaseDocSerializer):
                 indent = JSON_INDENT_SIZE if self.params.indent_json else None
                 return json.dumps(data, indent=indent, ensure_ascii=False)
 
-            if (
-                hasattr(self._json_encoder, "__name__")
-                and self._json_encoder.__name__ == "orjson"
-            ):
+            if hasattr(self._json_encoder, "__name__") and self._json_encoder.__name__ == "orjson":
                 # orjson
                 options = 0
                 if self.params.indent_json:
@@ -805,10 +790,7 @@ class LexicalDocSerializer(BaseDocSerializer):
                     self.params.progress_callback(progress)
 
                 # Memory management for large documents
-                if (
-                    self.params.memory_efficient_mode
-                    and i % self.params.batch_size == 0
-                ):
+                if self.params.memory_efficient_mode and i % self.params.batch_size == 0:
                     gc.collect()
 
             except Exception as e:
@@ -853,10 +835,13 @@ class LexicalDocSerializer(BaseDocSerializer):
             group_item = self.doc.groups[element_index]
             return self._create_group_node_optimized(group_item)
 
-        if element_type == ELEMENT_TYPE_PICTURES:
-            if hasattr(self.doc, "pictures") and element_index < len(self.doc.pictures):
-                picture_item = self.doc.pictures[element_index]
-                return self.image_serializer.serialize(picture_item, self.params)
+        if (
+            element_type == ELEMENT_TYPE_PICTURES
+            and hasattr(self.doc, "pictures")
+            and element_index < len(self.doc.pictures)
+        ):
+            picture_item = self.doc.pictures[element_index]
+            return self.image_serializer.serialize(picture_item, self.params)
 
         return None
 
@@ -896,10 +881,7 @@ class LexicalDocSerializer(BaseDocSerializer):
                         "700",
                     ]:
                         format_types.append("bold")
-                    if (
-                        style.get("italic")
-                        or style.get("font_style", "").lower() == "italic"
-                    ):
+                    if style.get("italic") or style.get("font_style", "").lower() == "italic":
                         format_types.append("italic")
                     if style.get("underline"):
                         format_types.append("underline")
@@ -922,10 +904,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         if not format_types:  # Only use heuristics if no style info found
             # Bold text patterns
             if (
-                (
-                    "bold" in lower_text
-                    and ("are" in lower_text or "terms" in lower_text)
-                )
+                ("bold" in lower_text and ("are" in lower_text or "terms" in lower_text))
                 or text_content.isupper()
                 or "important" in lower_text.lower()
                 or (text_content.startswith("**") and text_content.endswith("**"))
@@ -1015,9 +994,7 @@ class LexicalDocSerializer(BaseDocSerializer):
                 before_text = text_content[last_end : url_match.start()]
                 if before_text.strip():  # Only add non-empty tex
                     format_types = self._detect_text_formatting(before_text, text_item)
-                    nodes.append(
-                        self._create_formatted_text_node(before_text, format_types)
-                    )
+                    nodes.append(self._create_formatted_text_node(before_text, format_types))
 
             # Create link node
             url = url_match.group()
@@ -1169,9 +1146,7 @@ class LexicalDocSerializer(BaseDocSerializer):
                                 cell_text = getattr(cell, "text", "") or ""
                                 lexical_cell = {
                                     "children": [
-                                        self._create_formatted_text_node_optimized(
-                                            cell_text, []
-                                        )
+                                        self._create_formatted_text_node_optimized(cell_text, [])
                                     ],
                                     "direction": TEXT_DIRECTION_LTR,
                                     "format": DEFAULT_STYLE,
@@ -1181,10 +1156,7 @@ class LexicalDocSerializer(BaseDocSerializer):
                                 }
 
                                 # Add header state efficiently
-                                if (
-                                    hasattr(cell, "column_header")
-                                    and cell.column_header
-                                ):
+                                if hasattr(cell, "column_header") and cell.column_header:
                                     lexical_cell["headerState"] = HEADER_STATE_VALUE
 
                                 cells.append(lexical_cell)
@@ -1231,9 +1203,7 @@ class LexicalDocSerializer(BaseDocSerializer):
                     try:
                         text_index = int(ref_parts[2])
                         if text_index < len(self.doc.texts):
-                            first_text = (
-                                getattr(self.doc.texts[text_index], "text", "") or ""
-                            )
+                            first_text = getattr(self.doc.texts[text_index], "text", "") or ""
                             if first_text and ". " in first_text:
                                 prefix = first_text.split(". ", 1)[0].strip()
                                 if prefix.isdigit():
@@ -1275,9 +1245,7 @@ class LexicalDocSerializer(BaseDocSerializer):
                             )
                         else:
                             children = [
-                                self._create_formatted_text_node_optimized(
-                                    text_content, []
-                                )
+                                self._create_formatted_text_node_optimized(text_content, [])
                             ]
 
                         list_item = {
@@ -1318,11 +1286,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         # Quick heuristic checks (faster than detailed analysis)
         lower_text = text_content.lower()
 
-        if (
-            text_content.isupper()
-            or "important" in lower_text
-            or text_content.startswith("**")
-        ):
+        if text_content.isupper() or "important" in lower_text or text_content.startswith("**"):
             format_types.append("bold")
         elif "italic" in lower_text or text_content.startswith("*"):
             format_types.append("italic")
@@ -1336,9 +1300,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         # Quick check for URLs to avoid regex if not needed
         if "http" not in text_content and "www." not in text_content:
             format_types = self._detect_text_formatting_optimized(text_content, text_item)
-            return [
-                self._create_formatted_text_node_optimized(text_content, format_types)
-            ]
+            return [self._create_formatted_text_node_optimized(text_content, format_types)]
 
         # Use simplified URL detection
         import re
@@ -1348,9 +1310,7 @@ class LexicalDocSerializer(BaseDocSerializer):
 
         if not urls:
             format_types = self._detect_text_formatting_optimized(text_content, text_item)
-            return [
-                self._create_formatted_text_node_optimized(text_content, format_types)
-            ]
+            return [self._create_formatted_text_node_optimized(text_content, format_types)]
 
         # Process URLs (simplified version of original logic)
         nodes = []
@@ -1361,13 +1321,9 @@ class LexicalDocSerializer(BaseDocSerializer):
             if url_match.start() > last_end:
                 before_text = text_content[last_end : url_match.start()]
                 if before_text.strip():
-                    format_types = self._detect_text_formatting_optimized(
-                        before_text, text_item
-                    )
+                    format_types = self._detect_text_formatting_optimized(before_text, text_item)
                     nodes.append(
-                        self._create_formatted_text_node_optimized(
-                            before_text, format_types
-                        )
+                        self._create_formatted_text_node_optimized(before_text, format_types)
                     )
 
             # Add link node
@@ -1382,9 +1338,7 @@ class LexicalDocSerializer(BaseDocSerializer):
             after_text = text_content[last_end:]
             if after_text.strip():
                 format_types = self._detect_text_formatting_optimized(after_text, text_item)
-                nodes.append(
-                    self._create_formatted_text_node_optimized(after_text, format_types)
-                )
+                nodes.append(self._create_formatted_text_node_optimized(after_text, format_types))
 
         return nodes
 
@@ -1414,9 +1368,7 @@ class LexicalDocSerializer(BaseDocSerializer):
             "version": self.params.version,
         }
 
-    def _create_link_node_optimized(
-        self, text_content: str, url: str
-    ) -> dict[str, Any]:
+    def _create_link_node_optimized(self, text_content: str, url: str) -> dict[str, Any]:
         """Create optimized link node."""
         return {
             "children": [
@@ -1506,9 +1458,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         """
         return set()
 
-    def get_parts(
-        self, item: NodeItem | None = None, **kwargs: Any
-    ) -> list[SerializationResult]:
+    def get_parts(self, item: NodeItem | None = None, **kwargs: Any) -> list[SerializationResult]:
         """Get serialization parts for an item.
 
         For Lexical format, we serialize the entire document as one JSON structure
@@ -1541,7 +1491,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         Returns:
             The text unchanged
         """
-        return tex
+        return text
 
     def requires_page_break(self) -> bool:
         """Check if this serializer requires page breaks.
@@ -1554,9 +1504,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         """
         return False
 
-    def serialize_annotations(
-        self, item: DocItem, **kwargs: Any
-    ) -> SerializationResult:
+    def serialize_annotations(self, item: DocItem, **kwargs: Any) -> SerializationResult:
         """Serialize annotations for an item.
 
         For Lexical format, annotations are handled within the JSON structure
@@ -1584,13 +1532,11 @@ class LexicalDocSerializer(BaseDocSerializer):
         Returns:
             The text unchanged (formatting handled in JSON structure)
         """
-        return tex
+        return text
 
     def get_performance_stats(self) -> dict[str, Any]:
         """Get current performance statistics."""
-        duration = (
-            (time.time() - self._start_time) * 1000 if self._start_time > 0 else 0
-        )
+        duration = (time.time() - self._start_time) * 1000 if self._start_time > 0 else 0
 
         return {
             "elements_processed": self._elements_processed,
@@ -1608,9 +1554,7 @@ class LexicalDocSerializer(BaseDocSerializer):
             },
         }
 
-    def serialize_captions(
-        self, item: FloatingItem, **kwargs: Any
-    ) -> SerializationResult:
+    def serialize_captions(self, item: FloatingItem, **kwargs: Any) -> SerializationResult:
         """Serialize captions for a floating item.
 
         For Lexical format, captions are handled within the item's JSON
@@ -1625,9 +1569,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         """
         return SerializationResult(text="")
 
-    def serialize_hyperlink(
-        self, text: str, hyperlink: AnyUrl | Path, **kwargs: Any
-    ) -> str:
+    def serialize_hyperlink(self, text: str, hyperlink: AnyUrl | Path, **kwargs: Any) -> str:
         """Serialize hyperlink formatting.
 
         For Lexical format, hyperlinks are handled through dedicated link
@@ -1641,7 +1583,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         Returns:
             The text unchanged (links handled in JSON structure)
         """
-        return tex
+        return text
 
     def serialize_italic(self, text: str, **kwargs: Any) -> str:
         """Serialize italic text formatting.
@@ -1656,7 +1598,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         Returns:
             The text unchanged (formatting handled in JSON structure)
         """
-        return tex
+        return text
 
     def serialize_strikethrough(self, text: str, **kwargs: Any) -> str:
         """Serialize strikethrough text formatting.
@@ -1671,7 +1613,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         Returns:
             The text unchanged (formatting handled in JSON structure)
         """
-        return tex
+        return text
 
     def serialize_subscript(self, text: str, **kwargs: Any) -> str:
         """Serialize subscript text formatting.
@@ -1686,7 +1628,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         Returns:
             The text unchanged (formatting handled in JSON structure)
         """
-        return tex
+        return text
 
     def serialize_superscript(self, text: str, **kwargs: Any) -> str:
         """Serialize superscript text formatting.
@@ -1701,7 +1643,7 @@ class LexicalDocSerializer(BaseDocSerializer):
         Returns:
             The text unchanged (formatting handled in JSON structure)
         """
-        return tex
+        return text
 
     def serialize_underline(self, text: str, **kwargs: Any) -> str:
         """Serialize underline text formatting.
@@ -1716,4 +1658,4 @@ class LexicalDocSerializer(BaseDocSerializer):
         Returns:
             The text unchanged (formatting handled in JSON structure)
         """
-        return tex
+        return text

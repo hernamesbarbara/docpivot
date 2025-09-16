@@ -205,9 +205,7 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
             self.skipTest("No reader class provided")
 
         if not issubclass(reader_class, CustomReaderBase):
-            self.skipTest(
-                "Reader is not CustomReaderBase, skipping format detection test"
-            )
+            self.skipTest("Reader is not CustomReaderBase, skipping format detection test")
 
         reader = reader_class()
 
@@ -245,9 +243,7 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
         # Test with component serializers
         try:
             component_serializers = {"test_component": lambda x: str(x)}
-            serializer = serializer_class(
-                doc=doc, component_serializers=component_serializers
-            )
+            serializer = serializer_class(doc=doc, component_serializers=component_serializers)
             result = serializer.serialize()
             self.assertIsNotNone(result)
         except Exception as e:
@@ -272,9 +268,7 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
             if not result.success:
                 print(f"\nRound-trip test failed:\n{result}")
 
-            self.assertTrue(
-                result.success, f"Round-trip test failed: {result.error_message}"
-            )
+            self.assertTrue(result.success, f"Round-trip test failed: {result.error_message}")
 
         except Exception as e:
             self.fail(f"Round-trip test failed: {e}")
@@ -428,9 +422,7 @@ class FormatTestSuite:
 
         # Run round-trip tests
         if reader_class and serializer_class:
-            results["round_trip_tests"] = self._test_round_trip(
-                reader_class, serializer_class
-            )
+            results["round_trip_tests"] = self._test_round_trip(reader_class, serializer_class)
             if not results["round_trip_tests"]["success"]:
                 results["overall_success"] = False
 
@@ -486,9 +478,7 @@ class FormatTestSuite:
 
         return results
 
-    def _test_serializer(
-        self, serializer_class: type[BaseDocSerializer]
-    ) -> dict[str, Any]:
+    def _test_serializer(self, serializer_class: type[BaseDocSerializer]) -> dict[str, Any]:
         """Test a serializer class.
 
         Args:
@@ -589,7 +579,7 @@ class FormatTestSuite:
             origin=DocumentOrigin(
                 mimetype="text/plain",
                 binary_hash="e" * 64,  # Valid SHA256 hash
-                filename="empty.txt"
+                filename="empty.txt",
             ),
             body=GroupItem(self_ref="#/body"),
         )
@@ -606,16 +596,12 @@ class FormatTestSuite:
         report = "Format Testing Report\n"
         report += "=" * 50 + "\n\n"
 
-        report += (
-            f"Overall Success: {'PASS' if results['overall_success'] else 'FAIL'}\n\n"
-        )
+        report += f"Overall Success: {'PASS' if results['overall_success'] else 'FAIL'}\n\n"
 
         # Reader tests
         if results["reader_tests"]:
             reader_results = results["reader_tests"]
-            report += (
-                f"Reader Tests: {'PASS' if reader_results['success'] else 'FAIL'}\n"
-            )
+            report += f"Reader Tests: {'PASS' if reader_results['success'] else 'FAIL'}\n"
 
             if reader_results["validation"]:
                 validation = reader_results["validation"]
@@ -643,23 +629,17 @@ class FormatTestSuite:
 
             if serializer_results["serialization_tests"]:
                 successful_tests = sum(
-                    1
-                    for test in serializer_results["serialization_tests"]
-                    if test["success"]
+                    1 for test in serializer_results["serialization_tests"] if test["success"]
                 )
                 total_tests = len(serializer_results["serialization_tests"])
-                report += (
-                    f"  Serialization Tests: {successful_tests}/{total_tests} passed\n"
-                )
+                report += f"  Serialization Tests: {successful_tests}/{total_tests} passed\n"
 
             report += "\n"
 
         # Round-trip tests
         if results["round_trip_tests"]:
             round_trip = results["round_trip_tests"]
-            report += (
-                f"Round-trip Tests: {'PASS' if round_trip['success'] else 'FAIL'}\n"
-            )
+            report += f"Round-trip Tests: {'PASS' if round_trip['success'] else 'FAIL'}\n"
             if round_trip.get("error"):
                 report += f"  Error: {round_trip['error']}\n"
             report += "\n"

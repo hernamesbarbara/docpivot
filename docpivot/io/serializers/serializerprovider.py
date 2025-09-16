@@ -37,9 +37,7 @@ class SerializerProvider:
         return LexicalDocSerializer
 
     @classmethod
-    def get_serializer(
-        cls, format_name: str, doc: DoclingDocument, **kwargs: Any
-    ) -> AnySerializer:
+    def get_serializer(cls, format_name: str, doc: DoclingDocument, **kwargs: Any) -> AnySerializer:
         """Get a serializer instance for the specified format.
 
         This method first checks the local registry, then falls back to the
@@ -89,9 +87,7 @@ class SerializerProvider:
         )
 
     @classmethod
-    def register_serializer(
-        cls, format_name: str, serializer_cls: type[BaseDocSerializer]
-    ) -> None:
+    def register_serializer(cls, format_name: str, serializer_cls: type[BaseDocSerializer]) -> None:
         """Register a new serializer for a format.
 
         Args:
@@ -131,7 +127,7 @@ class SerializerProvider:
 
                 # Merge and deduplicate
                 all_formats = set(formats + registry_formats)
-                return sorted(list(all_formats))
+                return sorted(all_formats)
             except ImportError:
                 pass
 
@@ -177,7 +173,7 @@ class SerializerProvider:
         formats = {}
 
         # Add built-in formats
-        for format_name in cls._serializers.keys():
+        for format_name in cls._serializers:
             formats[format_name] = {
                 "name": format_name,
                 "source": "builtin",

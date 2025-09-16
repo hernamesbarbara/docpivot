@@ -13,7 +13,7 @@ def get_default_lexical_config() -> dict[str, Any]:
     """
     return {
         "pretty": False,  # Compact by default
-        "indent": 2,      # If pretty=True
+        "indent": 2,  # If pretty=True
         "include_metadata": True,
         "preserve_formatting": True,
         "handle_tables": True,

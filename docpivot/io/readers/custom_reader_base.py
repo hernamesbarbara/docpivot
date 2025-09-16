@@ -196,9 +196,7 @@ class CustomReaderBase(BaseReader):
 
         # Create basic document structure with minimal required fields
         # DoclingDocument will handle creating the proper internal structure
-        doc = DoclingDocument(name="")
-
-        return doc
+        return DoclingDocument(name="")
 
     def _validate_configuration(self) -> None:
         """Validate reader configuration and properties.
@@ -210,9 +208,7 @@ class CustomReaderBase(BaseReader):
             ValueError: If the configuration is invalid
         """
         if not self.supported_extensions:
-            raise ValueError(
-                f"{self.__class__.__name__} must define supported_extensions"
-            )
+            raise ValueError(f"{self.__class__.__name__} must define supported_extensions")
 
         if not self.format_name:
             raise ValueError(f"{self.__class__.__name__} must define format_name")

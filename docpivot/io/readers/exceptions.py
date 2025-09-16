@@ -191,9 +191,7 @@ class UnsupportedFormatError(DocPivotError, ValueError):
 
         message_parts.append("Supported formats:")
         message_parts.extend(f"  - {fmt}" for fmt in supported_formats)
-        message_parts.append(
-            "\nTo add support for additional formats, extend BaseReader."
-        )
+        message_parts.append("\nTo add support for additional formats, extend BaseReader.")
 
         message = "\n".join(message_parts)
 
@@ -290,9 +288,7 @@ class SchemaValidationError(ValidationError):
         }
 
         kwargs_copy = kwargs.copy()
-        kwargs_copy.update(
-            {"error_code": "SCHEMA_VALIDATION_ERROR", "context": context}
-        )
+        kwargs_copy.update({"error_code": "SCHEMA_VALIDATION_ERROR", "context": context})
         super().__init__(message, **kwargs_copy)
         self.schema_name = schema_name
         self.expected_schema = expected_schema

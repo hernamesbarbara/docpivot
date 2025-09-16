@@ -44,12 +44,12 @@ class TestDocPivotEngine:
         engine = DocPivotEngine()
         doc = create_mock_document()
 
-        with patch('docpivot.engine.LexicalDocSerializer') as MockSerializer:
+        with patch("docpivot.engine.LexicalDocSerializer") as mock_serializer:
             mock_instance = Mock()
             mock_result = Mock()
             mock_result.text = '{"type": "doc", "content": []}'
             mock_instance.serialize.return_value = mock_result
-            MockSerializer.return_value = mock_instance
+            mock_serializer.return_value = mock_instance
 
             result = engine.convert_to_lexical(doc)
 
@@ -64,17 +64,15 @@ class TestDocPivotEngine:
         test_file.write_text('{"test": "data"}')
 
         engine = DocPivotEngine()
-        with patch.object(engine._reader_factory, 'get_reader') as mock_get_reader:
+        with patch.object(engine._reader_factory, "get_reader") as mock_get_reader:
             mock_reader = Mock()
             mock_doc = create_mock_document()
             mock_reader.read.return_value = mock_doc
             mock_get_reader.return_value = mock_reader
 
-            with patch.object(engine, 'convert_to_lexical') as mock_convert:
+            with patch.object(engine, "convert_to_lexical") as mock_convert:
                 mock_convert.return_value = ConversionResult(
-                    content='{"converted": true}',
-                    format="lexical",
-                    metadata={}
+                    content='{"converted": true}', format="lexical", metadata={}
                 )
 
                 result = engine.convert_file(test_file)
@@ -88,17 +86,15 @@ class TestDocPivotEngine:
         input_file.write_text('{"test": "data"}')
 
         engine = DocPivotEngine()
-        with patch.object(engine._reader_factory, 'get_reader') as mock_get_reader:
+        with patch.object(engine._reader_factory, "get_reader") as mock_get_reader:
             mock_reader = Mock()
             mock_doc = create_mock_document()
             mock_reader.read.return_value = mock_doc
             mock_get_reader.return_value = mock_reader
 
-            with patch.object(engine, 'convert_to_lexical') as mock_convert:
+            with patch.object(engine, "convert_to_lexical") as mock_convert:
                 mock_convert.return_value = ConversionResult(
-                    content='{"converted": true}',
-                    format="lexical",
-                    metadata={}
+                    content='{"converted": true}', format="lexical", metadata={}
                 )
 
                 result = engine.convert_file(input_file, output_path=output_file)
@@ -117,38 +113,34 @@ class TestDocPivotEngineBuilder:
 
     def test_builder_with_pretty_print(self):
         """Test builder with pretty printing."""
-        engine = DocPivotEngine.builder() \
-            .with_pretty_print(indent=4) \
-            .build()
+        engine = DocPivotEngine.builder().with_pretty_print(indent=4).build()
 
         assert engine.lexical_config["pretty"] is True
         assert engine.lexical_config["indent"] == 4
 
     def test_builder_performance_mode(self):
         """Test performance mode configuration."""
-        engine = DocPivotEngine.builder() \
-            .with_performance_mode() \
-            .build()
+        engine = DocPivotEngine.builder().with_performance_mode().build()
 
         assert engine.lexical_config["pretty"] is False
         assert engine.lexical_config["include_metadata"] is False
 
     def test_builder_debug_mode(self):
         """Test debug mode configuration."""
-        engine = DocPivotEngine.builder() \
-            .with_debug_mode() \
-            .build()
+        engine = DocPivotEngine.builder().with_debug_mode().build()
 
         assert engine.lexical_config["pretty"] is True
         assert engine.lexical_config["include_metadata"] is True
 
     def test_builder_chain(self):
         """Test fluent interface chaining."""
-        engine = DocPivotEngine.builder() \
-            .with_images(include=True) \
-            .with_metadata(include=False) \
-            .with_default_format("lexical") \
+        engine = (
+            DocPivotEngine.builder()
+            .with_images(include=True)
+            .with_metadata(include=False)
+            .with_default_format("lexical")
             .build()
+        )
 
         assert engine.lexical_config["handle_images"] is True
         assert engine.lexical_config["include_metadata"] is False

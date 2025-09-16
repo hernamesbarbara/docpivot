@@ -49,7 +49,7 @@ def mock_docling_document():
     doc.body.items = [
         Mock(type="paragraph", text="Test paragraph"),
         Mock(type="heading", text="Test heading"),
-        Mock(type="list", items=["item1", "item2"])
+        Mock(type="list", items=["item1", "item2"]),
     ]
     doc.metadata = {"source": "test", "version": "1.0"}
     return doc
@@ -71,12 +71,7 @@ def sample_lexical_content():
             "children": [
                 {
                     "type": "paragraph",
-                    "children": [
-                        {
-                            "type": "text",
-                            "text": "Sample paragraph text"
-                        }
-                    ]
+                    "children": [{"type": "text", "text": "Sample paragraph text"}],
                 }
             ]
         }
@@ -90,18 +85,9 @@ def sample_docling_content():
         "name": "sample_document",
         "body": {
             "items": [
-                {
-                    "type": "paragraph",
-                    "text": "Sample paragraph"
-                },
-                {
-                    "type": "heading",
-                    "text": "Sample heading",
-                    "level": 1
-                }
+                {"type": "paragraph", "text": "Sample paragraph"},
+                {"type": "heading", "text": "Sample heading", "level": 1},
             ]
         },
-        "metadata": {
-            "source": "test"
-        }
+        "metadata": {"source": "test"},
     }

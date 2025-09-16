@@ -1,6 +1,5 @@
 """Tests for builders, configurations, and defaults."""
 
-
 from docpivot import (
     DocPivotEngine,
     DocPivotEngineBuilder,
@@ -104,9 +103,7 @@ class TestDocPivotEngineBuilder:
 
     def test_builder_with_pretty_print(self):
         """Test pretty print configuration."""
-        engine = (DocPivotEngineBuilder()
-                 .with_pretty_print(indent=3)
-                 .build())
+        engine = DocPivotEngineBuilder().with_pretty_print(indent=3).build()
 
         assert engine.lexical_config["pretty"] is True
         assert engine.lexical_config["indent"] == 3
@@ -114,48 +111,34 @@ class TestDocPivotEngineBuilder:
     def test_builder_with_images(self):
         """Test image handling configuration."""
         # Test enabling images
-        engine = (DocPivotEngineBuilder()
-                 .with_images(include=True)
-                 .build())
+        engine = DocPivotEngineBuilder().with_images(include=True).build()
         assert engine.lexical_config["handle_images"] is True
 
         # Test disabling images
-        engine = (DocPivotEngineBuilder()
-                 .with_images(include=False)
-                 .build())
+        engine = DocPivotEngineBuilder().with_images(include=False).build()
         assert engine.lexical_config["handle_images"] is False
 
     def test_builder_with_metadata(self):
         """Test metadata inclusion configuration."""
         # Test enabling metadata
-        engine = (DocPivotEngineBuilder()
-                 .with_metadata(include=True)
-                 .build())
+        engine = DocPivotEngineBuilder().with_metadata(include=True).build()
         assert engine.lexical_config["include_metadata"] is True
 
         # Test disabling metadata
-        engine = (DocPivotEngineBuilder()
-                 .with_metadata(include=False)
-                 .build())
+        engine = DocPivotEngineBuilder().with_metadata(include=False).build()
         assert engine.lexical_config["include_metadata"] is False
 
     def test_builder_with_default_format(self):
         """Test setting default output format."""
-        engine = (DocPivotEngineBuilder()
-                 .with_default_format("lexical")
-                 .build())
+        engine = DocPivotEngineBuilder().with_default_format("lexical").build()
         assert engine.default_format == "lexical"
 
-        engine = (DocPivotEngineBuilder()
-                 .with_default_format("json")
-                 .build())
+        engine = DocPivotEngineBuilder().with_default_format("json").build()
         assert engine.default_format == "json"
 
     def test_builder_performance_mode(self):
         """Test performance mode applies correct config."""
-        engine = (DocPivotEngineBuilder()
-                 .with_performance_mode()
-                 .build())
+        engine = DocPivotEngineBuilder().with_performance_mode().build()
 
         # Should use performance config
         assert engine.lexical_config["pretty"] is False
@@ -163,9 +146,7 @@ class TestDocPivotEngineBuilder:
 
     def test_builder_debug_mode(self):
         """Test debug mode applies correct config."""
-        engine = (DocPivotEngineBuilder()
-                 .with_debug_mode()
-                 .build())
+        engine = DocPivotEngineBuilder().with_debug_mode().build()
 
         # Should use debug config
         assert engine.lexical_config["pretty"] is True
@@ -173,15 +154,9 @@ class TestDocPivotEngineBuilder:
 
     def test_builder_with_custom_config(self):
         """Test builder with completely custom config."""
-        custom_config = {
-            "pretty": True,
-            "indent": 8,
-            "custom_field": "custom_value"
-        }
+        custom_config = {"pretty": True, "indent": 8, "custom_field": "custom_value"}
 
-        engine = (DocPivotEngineBuilder()
-                 .with_custom_config(custom_config)
-                 .build())
+        engine = DocPivotEngineBuilder().with_lexical_config(custom_config).build()
 
         assert engine.lexical_config["pretty"] is True
         assert engine.lexical_config["indent"] == 8
@@ -189,13 +164,15 @@ class TestDocPivotEngineBuilder:
 
     def test_builder_chaining_complex(self):
         """Test complex chaining of builder methods."""
-        engine = (DocPivotEngineBuilder()
-                 .with_performance_mode()  # Start with performance
-                 .with_pretty_print()       # Override pretty print
-                 .with_images(False)        # Explicitly disable images
-                 .with_metadata(True)       # Enable metadata
-                 .with_default_format("lexical")
-                 .build())
+        engine = (
+            DocPivotEngineBuilder()
+            .with_performance_mode()  # Start with performance
+            .with_pretty_print()  # Override pretty print
+            .with_images(False)  # Explicitly disable images
+            .with_metadata(True)  # Enable metadata
+            .with_default_format("lexical")
+            .build()
+        )
 
         # Pretty should be True (overridden)
         assert engine.lexical_config["pretty"] is True
@@ -212,7 +189,5 @@ class TestDocPivotEngineBuilder:
         assert isinstance(engine, DocPivotEngine)
 
         # Test with configuration
-        engine = (DocPivotEngine.builder()
-                 .with_pretty_print()
-                 .build())
+        engine = DocPivotEngine.builder().with_pretty_print().build()
         assert engine.lexical_config["pretty"] is True

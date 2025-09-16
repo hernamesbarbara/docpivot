@@ -207,9 +207,7 @@ class CustomSerializerBase(BaseDocSerializer):
             raise ValueError(f"{self.__class__.__name__} must define file_extension")
 
         if not self.file_extension.startswith("."):
-            raise ValueError(
-                f"File extension must start with '.', got: {self.file_extension}"
-            )
+            raise ValueError(f"File extension must start with '.', got: {self.file_extension}")
 
     def _serialize_text_content(self) -> str:
         """Helper method to extract plain text content from document.

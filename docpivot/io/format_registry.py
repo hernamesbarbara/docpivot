@@ -79,7 +79,7 @@ class FormatInfo:
                     GroupItem,
                 )
 
-                empty_doc = DoclingDocument(
+                DoclingDocument(
                     name="",
                     origin=DocumentOrigin(mimetype="", binary_hash=0, filename=""),
                     furniture=GroupItem(self_ref="", children=[]),
@@ -158,9 +158,7 @@ class FormatRegistry:
             raise ValueError("Format name cannot be empty")
 
         if not issubclass(reader_class, BaseReader):
-            raise TypeError(
-                f"Reader class {reader_class.__name__} must extend BaseReader"
-            )
+            raise TypeError(f"Reader class {reader_class.__name__} must extend BaseReader")
 
         format_key = format_name.lower().strip()
 
@@ -239,9 +237,7 @@ class FormatRegistry:
         format_info = self._formats.get(format_key)
         return format_info.reader_class if format_info else None
 
-    def get_serializer_for_format(
-        self, format_name: str
-    ) -> type[BaseDocSerializer] | None:
+    def get_serializer_for_format(self, format_name: str) -> type[BaseDocSerializer] | None:
         """Get serializer class for a format.
 
         Args:
@@ -388,7 +384,7 @@ class FormatRegistry:
             except Exception:
                 continue
 
-        return sorted(list(extensions))
+        return sorted(extensions)
 
     def unregister_format(self, format_name: str) -> bool:
         """Unregister a format.

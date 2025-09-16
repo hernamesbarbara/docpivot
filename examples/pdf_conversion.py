@@ -19,6 +19,7 @@ try:
     from docling.datamodel.document import ConversionResult
     from docling.document_converter import DocumentConverter
     from docling_core.types import DoclingDocument
+
     HAS_DOCLING = True
 except ImportError:
     HAS_DOCLING = False
@@ -85,14 +86,16 @@ def convert_pdf_to_multiple_formats(pdf_path: Path, output_dir: Path):
     print("\n4. Exporting to Lexical JSON (via DocPivot):")
 
     # Create DocPivot engine with pretty printing for readability
-    engine = DocPivotEngine(lexical_config={
-        "pretty": True,
-        "indent": 2,
-        "include_metadata": True,
-        "handle_images": True,
-        "handle_tables": True,
-        "handle_lists": True
-    })
+    engine = DocPivotEngine(
+        lexical_config={
+            "pretty": True,
+            "indent": 2,
+            "include_metadata": True,
+            "handle_images": True,
+            "handle_tables": True,
+            "handle_lists": True,
+        }
+    )
 
     # Convert to Lexical format
     result = engine.convert_to_lexical(dl_doc)
@@ -115,11 +118,7 @@ def convert_pdf_to_multiple_formats(pdf_path: Path, output_dir: Path):
     print(f"  2. {doc_filename}.docling.json (Docling JSON)")
     print(f"  3. {doc_filename}.lexical.json (Lexical Editor JSON)")
 
-    return {
-        "markdown": outfile_md,
-        "docling_json": outfile_json,
-        "lexical_json": outfile_lexical
-    }
+    return {"markdown": outfile_md, "docling_json": outfile_json, "lexical_json": outfile_lexical}
 
 
 def batch_convert_pdfs(input_dir: Path, output_dir: Path):
@@ -144,18 +143,10 @@ def batch_convert_pdfs(input_dir: Path, output_dir: Path):
             # Create subdirectory for each PDF's outputs
             pdf_output_dir = output_dir / pdf_path.stem
             outputs = convert_pdf_to_multiple_formats(pdf_path, pdf_output_dir)
-            results.append({
-                "pdf": pdf_path.name,
-                "status": "success",
-                "outputs": outputs
-            })
+            results.append({"pdf": pdf_path.name, "status": "success", "outputs": outputs})
         except Exception as e:
             print(f"   ✗ Error: {e}")
-            results.append({
-                "pdf": pdf_path.name,
-                "status": "failed",
-                "error": str(e)
-            })
+            results.append({"pdf": pdf_path.name, "status": "failed", "error": str(e)})
 
     # Print summary
     print("\n" + "=" * 60)

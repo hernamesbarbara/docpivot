@@ -42,9 +42,7 @@ class ReaderFactory:
             ValueError: If reader_class does not extend BaseReader
         """
         if not issubclass(reader_class, BaseReader):
-            raise ValueError(
-                f"Reader class {reader_class.__name__} must extend BaseReader"
-            )
+            raise ValueError(f"Reader class {reader_class.__name__} must extend BaseReader")
 
         self._readers[format_name] = reader_class
 
@@ -149,7 +147,7 @@ class ReaderFactory:
 
                 # Merge and deduplicate
                 all_formats = set(formats + registry_formats)
-                return sorted(list(all_formats))
+                return sorted(all_formats)
             except ImportError:
                 pass
 

@@ -190,9 +190,7 @@ class DoclingJsonReader(BaseReader):
         ):
             duration = (time.time() - start_time) * 1000
             # Log error timing
-            logger.error(
-                f"Failed to load DoclingDocument from {file_path} after {duration:.2f}ms"
-            )
+            logger.error(f"Failed to load DoclingDocument from {file_path} after {duration:.2f}ms")
             raise
         except Exception as e:
             # Handle unexpected errors with comprehensive context
@@ -234,9 +232,7 @@ class DoclingJsonReader(BaseReader):
             # Read file with encoding detection
             try:
                 content = path.read_text(encoding="utf-8")
-                logger.debug(
-                    f"Successfully read {len(content)} characters from {path}"
-                )
+                logger.debug(f"Successfully read {len(content)} characters from {path}")
             except UnicodeDecodeError as e:
                 raise FileAccessError(
                     f"Unable to decode file '{path}' as UTF-8. "
@@ -292,46 +288,45 @@ class DoclingJsonReader(BaseReader):
             if self.progress_callback:
                 self.progress_callback(0.1)
 
-            with open(path, "rb") as f:
-                with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mmapped_file:
+            with (
+                Path(path).open("rb") as f,
+                mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mmapped_file,
+            ):
+                if self.progress_callback:
+                    self.progress_callback(0.3)
 
-                    if self.progress_callback:
-                        self.progress_callback(0.3)
+                # Read content from memory-mapped file
+                try:
+                    content = mmapped_file.read().decode("utf-8")
+                    logger.debug(
+                        f"Successfully read {len(content)} characters from memory-mapped {path}"
+                    )
+                except UnicodeDecodeError as e:
+                    raise FileAccessError(
+                        f"Unable to decode memory-mapped file '{path}' as UTF-8: {e}",
+                        str(path),
+                        "mmap_decode",
+                        context={"encoding": "utf-8", "original_error": str(e)},
+                        cause=e,
+                    ) from e
 
-                    # Read content from memory-mapped file
-                    try:
-                        content = mmapped_file.read().decode("utf-8")
-                        logger.debug(
-                            f"Successfully read {len(content)} characters from memory-mapped {path}"
-                        )
-                    except UnicodeDecodeError as e:
-                        raise FileAccessError(
-                            f"Unable to decode memory-mapped file '{path}' as UTF-8: {e}",
-                            str(path),
-                            "mmap_decode",
-                            context={"encoding": "utf-8", "original_error": str(e)},
-                            cause=e,
-                        ) from e
+                if self.progress_callback:
+                    self.progress_callback(0.6)
 
-                    if self.progress_callback:
-                        self.progress_callback(0.6)
+                # Parse JSON
+                json_data = self._parse_json(content)
 
-                    # Parse JSON
-                    json_data = self._parse_json(content)
+                if self.progress_callback:
+                    self.progress_callback(0.8)
 
-                    if self.progress_callback:
-                        self.progress_callback(0.8)
-
-                    # Validate and create document
-                    return self._validate_and_create_document(json_data, str(path))
+                # Validate and create document
+                return self._validate_and_create_document(json_data, str(path))
 
         except (FileAccessError, DocPivotValidationError):
             raise
         except Exception as e:
             # Fallback to standard loading if memory mapping fails
-            logger.warning(
-                f"Memory-mapped loading failed, falling back to standard: {e}"
-            )
+            logger.warning(f"Memory-mapped loading failed, falling back to standard: {e}")
             return self._load_standard(path, file_size)
         finally:
             if self.progress_callback:
@@ -344,9 +339,7 @@ class DoclingJsonReader(BaseReader):
                 self.progress_callback(0.1)
 
             # Use buffered I/O for large files
-            with open(
-                path, encoding="utf-8", buffering=JSON_PARSER_BUFFER_SIZE
-            ) as f:
+            with Path(path).open(encoding="utf-8", buffering=JSON_PARSER_BUFFER_SIZE) as f:
 
                 if self.progress_callback:
                     self.progress_callback(0.3)
@@ -398,7 +391,7 @@ class DoclingJsonReader(BaseReader):
 
     def _parse_json(self, content: str) -> dict[str, Any]:
         """Parse JSON content with the selected parser."""
-        parser_name = getattr(self._json_parser, '__name__', type(self._json_parser).__name__)
+        parser_name = getattr(self._json_parser, "__name__", type(self._json_parser).__name__)
 
         try:
             return self._json_parser.loads(content)
@@ -418,7 +411,7 @@ class DoclingJsonReader(BaseReader):
                             "parser": "standard_fallback",
                             "primary_parser": parser_name,
                             "content_length": len(content),
-                            "primary_parser_error": str(e)
+                            "primary_parser_error": str(e),
                         },
                         cause=json_e,
                     ) from json_e
@@ -568,7 +561,7 @@ class DoclingJsonReader(BaseReader):
         return {
             "enabled": self.enable_caching,
             "size": len(self._document_cache),
-            "files": [cache_key[0] for cache_key in self._document_cache.keys()],
+            "files": [cache_key[0] for cache_key in self._document_cache],
         }
 
     def detect_format(self, file_path: str | Path) -> bool:
@@ -607,9 +600,7 @@ class DoclingJsonReader(BaseReader):
             # For generic .json files, do optimized content-based detection
             if suffix == ".json":
                 result = self._check_docling_json_content_optimized(path)
-                logger.debug(
-                    f"Content-based format detection for {file_path}: {result}"
-                )
+                logger.debug(f"Content-based format detection for {file_path}: {result}")
                 return result
 
             return False
@@ -630,18 +621,14 @@ class DoclingJsonReader(BaseReader):
         """
         try:
             # Read only the first chunk to check for markers (optimized)
-            with open(path, encoding="utf-8") as f:
+            with Path(path).open(encoding="utf-8") as f:
                 chunk = f.read(1024)  # Read first 1KB only
 
             # Quick string search for DoclingDocument markers
             has_markers = (
-                '"schema_name"' in chunk
-                and '"DoclingDocument"' in chunk
-                and '"version"' in chunk
+                '"schema_name"' in chunk and '"DoclingDocument"' in chunk and '"version"' in chunk
             )
-            logger.debug(
-                f"DoclingDocument content markers found in {path}: {has_markers}"
-            )
+            logger.debug(f"DoclingDocument content markers found in {path}: {has_markers}")
             return has_markers
 
         except (OSError, UnicodeDecodeError) as e:
@@ -652,9 +639,7 @@ class DoclingJsonReader(BaseReader):
         """Backward compatibility method - delegates to optimized version."""
         return self._check_docling_json_content_optimized(path)
 
-    def _validate_docling_schema(
-        self, json_data: dict[str, Any], file_path: str
-    ) -> None:
+    def _validate_docling_schema(self, json_data: dict[str, Any], file_path: str) -> None:
         """Validate that JSON data has expected DoclingDocument schema structure.
 
         This method is kept for backward compatibility with existing tests.
