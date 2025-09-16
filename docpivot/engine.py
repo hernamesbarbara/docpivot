@@ -16,7 +16,7 @@ try:
     HAS_DOCLING = True
 except ImportError:
     HAS_DOCLING = False
-    DocumentConverter = None  # type: ignore[misc, assignment]
+    DocumentConverter = None  # type: ignore[assignment, misc]
 
 from docpivot.io.readers.readerfactory import ReaderFactory
 from docpivot.io.serializers.lexicaldocserializer import LexicalDocSerializer
