@@ -1,12 +1,11 @@
 """ReaderFactory for automatic format detection and reader selection with extensibility support."""
 
 from pathlib import Path
-from typing import Dict, List, Type, Union, Optional
 
 from .basereader import BaseReader
 from .doclingjsonreader import DoclingJsonReader
-from .lexicaljsonreader import LexicalJsonReader
 from .exceptions import UnsupportedFormatError
+from .lexicaljsonreader import LexicalJsonReader
 
 
 class ReaderFactory:
@@ -23,7 +22,7 @@ class ReaderFactory:
         Args:
             enable_registry_integration: Whether to integrate with the format registry
         """
-        self._readers: Dict[str, Type[BaseReader]] = {}
+        self._readers: dict[str, type[BaseReader]] = {}
         self._registry_integration_enabled = enable_registry_integration
         self._register_default_readers()
 
@@ -32,7 +31,7 @@ class ReaderFactory:
         self.register_reader("docling", DoclingJsonReader)
         self.register_reader("lexical", LexicalJsonReader)
 
-    def register_reader(self, format_name: str, reader_class: Type[BaseReader]) -> None:
+    def register_reader(self, format_name: str, reader_class: type[BaseReader]) -> None:
         """Register a reader class for a specific format.
 
         Args:
@@ -49,7 +48,7 @@ class ReaderFactory:
 
         self._readers[format_name] = reader_class
 
-    def get_reader(self, file_path: Union[str, Path], **kwargs) -> BaseReader:
+    def get_reader(self, file_path: str | Path, **kwargs) -> BaseReader:
         """Automatically select and instantiate the appropriate reader for file.
 
         This method first checks local readers, then falls back to the
@@ -95,7 +94,7 @@ class ReaderFactory:
         # No reader found
         raise UnsupportedFormatError(str(file_path))
 
-    def detect_format(self, file_path: Union[str, Path]) -> str:
+    def detect_format(self, file_path: str | Path) -> str:
         """Detect the file format and return the format name.
 
         Uses both file extension and content-based detection to determine
@@ -130,7 +129,7 @@ class ReaderFactory:
         # If no reader can handle the format, raise an error
         raise UnsupportedFormatError(str(file_path))
 
-    def get_supported_formats(self) -> List[str]:
+    def get_supported_formats(self) -> list[str]:
         """Get a list of supported format names.
 
         This includes both local readers and formats from the registry.
@@ -156,7 +155,7 @@ class ReaderFactory:
 
         return sorted(formats)
 
-    def is_supported_format(self, file_path: Union[str, Path]) -> bool:
+    def is_supported_format(self, file_path: str | Path) -> bool:
         """Check if the given file format is supported by any registered reader.
 
         This checks both local readers and the format registry.
@@ -187,7 +186,7 @@ class ReaderFactory:
 
         return False
 
-    def discover_formats(self) -> Dict[str, Dict[str, any]]:
+    def discover_formats(self) -> dict[str, dict[str, any]]:
         """Discover all available reading formats and their capabilities.
 
         Returns:

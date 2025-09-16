@@ -7,8 +7,9 @@ custom configurations, and integration patterns.
 
 import json
 from pathlib import Path
-from typing import List, Dict, Any
-from docpivot import DocPivotEngine, get_performance_config, get_debug_config
+from typing import Any
+
+from docpivot import DocPivotEngine, get_debug_config, get_performance_config
 
 # Optional imports
 try:
@@ -121,7 +122,7 @@ def custom_processing_pipeline():
             self.engine = DocPivotEngine()
             self.stats = {"processed": 0, "failed": 0}
 
-        def preprocess(self, file_path: Path) -> Dict[str, Any]:
+        def preprocess(self, file_path: Path) -> dict[str, Any]:
             """Validate and prepare file."""
             if not file_path.exists():
                 raise FileNotFoundError(f"File not found: {file_path}")
@@ -132,7 +133,7 @@ def custom_processing_pipeline():
 
             return {"file": file_path, "size": file_size}
 
-        def process(self, file_path: Path) -> Dict[str, Any]:
+        def process(self, file_path: Path) -> dict[str, Any]:
             """Process the document."""
             # Preprocess
             info = self.preprocess(file_path)
@@ -143,7 +144,7 @@ def custom_processing_pipeline():
             # Postprocess
             return self.postprocess(result, info)
 
-        def postprocess(self, result, info: Dict[str, Any]) -> Dict[str, Any]:
+        def postprocess(self, result, info: dict[str, Any]) -> dict[str, Any]:
             """Enhance results with additional metadata."""
             self.stats["processed"] += 1
 
@@ -171,7 +172,7 @@ def custom_processing_pipeline():
                 for value in data.values():
                     count += self._count_nodes(value)
                 return count
-            elif isinstance(data, list):
+            if isinstance(data, list):
                 return sum(self._count_nodes(item) for item in data)
             return 0
 
@@ -263,8 +264,8 @@ def error_handling_example():
     if not HAS_DOCLING_CORE:
         try:
             result = engine.convert_pdf("sample.pdf")
-        except ImportError as e:
-            print(f"✓ Caught ImportError for PDF: Package not installed")
+        except ImportError:
+            print("✓ Caught ImportError for PDF: Package not installed")
 
     print("\nError handling patterns:")
     print("  • Always wrap conversions in try-except")

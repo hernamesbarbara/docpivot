@@ -8,16 +8,15 @@ Lexical JSON format, and general data validation patterns.
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, Set, Tuple
+from typing import Any
 
 from docling_core.types import DoclingDocument
-from pydantic import ValidationError as PydanticValidationError
 
 from docpivot.io.readers.exceptions import (
-    ValidationError,
-    SchemaValidationError,
     ConfigurationError,
     FileAccessError,
+    SchemaValidationError,
+    ValidationError,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,8 +49,8 @@ class DocumentValidator:
 
     def validate_docling_document(
         self,
-        doc_data: Union[Dict[str, Any], DoclingDocument],
-        file_path: Optional[str] = None,
+        doc_data: dict[str, Any] | DoclingDocument,
+        file_path: str | None = None,
     ) -> None:
         """Validate DoclingDocument structure and required fields.
 
@@ -101,7 +100,7 @@ class DocumentValidator:
         logger.debug("DoclingDocument validation completed successfully")
 
     def _validate_docling_schema(
-        self, doc_dict: Dict[str, Any], file_path: Optional[str]
+        self, doc_dict: dict[str, Any], file_path: str | None
     ) -> None:
         """Validate DoclingDocument schema fields.
 
@@ -145,7 +144,7 @@ class DocumentValidator:
             )
 
     def _validate_docling_content(
-        self, doc_dict: Dict[str, Any], file_path: Optional[str]
+        self, doc_dict: dict[str, Any], file_path: str | None
     ) -> None:
         """Validate DoclingDocument content structure.
 
@@ -214,7 +213,7 @@ class LexicalValidator:
     VALID_LIST_TYPES = {"ordered", "unordered"}
 
     def validate_lexical_json(
-        self, json_data: Dict[str, Any], file_path: Optional[str] = None
+        self, json_data: dict[str, Any], file_path: str | None = None
     ) -> None:
         """Validate Lexical JSON structure and content.
 
@@ -261,7 +260,7 @@ class LexicalValidator:
         logger.debug("Lexical JSON validation completed successfully")
 
     def _validate_lexical_root_node(
-        self, root_node: Any, file_path: Optional[str]
+        self, root_node: Any, file_path: str | None
     ) -> None:
         """Validate Lexical root node structure.
 
@@ -292,7 +291,7 @@ class LexicalValidator:
             )
 
     def _validate_lexical_nodes(
-        self, nodes: List[Any], file_path: Optional[str]
+        self, nodes: list[Any], file_path: str | None
     ) -> None:
         """Validate Lexical node hierarchy.
 
@@ -336,9 +335,9 @@ class ParameterValidator:
 
     def validate_serializer_params(
         self,
-        params: Dict[str, Any],
+        params: dict[str, Any],
         serializer_type: str,
-        allowed_params: Optional[Set[str]] = None,
+        allowed_params: set[str] | None = None,
     ) -> None:
         """Validate serializer parameters.
 
@@ -378,10 +377,10 @@ class ParameterValidator:
 
     def validate_file_path(
         self,
-        file_path: Union[str, Path],
+        file_path: str | Path,
         must_exist: bool = True,
         must_be_file: bool = True,
-        allowed_extensions: Optional[Set[str]] = None,
+        allowed_extensions: set[str] | None = None,
     ) -> Path:
         """Validate file path and return as Path object.
 
@@ -444,8 +443,8 @@ class JsonValidator:
     """Validator for JSON content and structure."""
 
     def validate_json_content(
-        self, content: str, file_path: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, content: str, file_path: str | None = None
+    ) -> dict[str, Any]:
         """Validate and parse JSON content.
 
         Args:
@@ -508,7 +507,7 @@ json_validator = JsonValidator()
 
 # Convenience functions for common validation operations
 def validate_docling_document(
-    doc_data: Union[Dict[str, Any], DoclingDocument], file_path: Optional[str] = None
+    doc_data: dict[str, Any] | DoclingDocument, file_path: str | None = None
 ) -> None:
     """Validate DoclingDocument structure.
 
@@ -523,7 +522,7 @@ def validate_docling_document(
 
 
 def validate_lexical_json(
-    json_data: Dict[str, Any], file_path: Optional[str] = None
+    json_data: dict[str, Any], file_path: str | None = None
 ) -> None:
     """Validate Lexical JSON structure.
 
@@ -538,10 +537,10 @@ def validate_lexical_json(
 
 
 def validate_file_path(
-    file_path: Union[str, Path],
+    file_path: str | Path,
     must_exist: bool = True,
     must_be_file: bool = True,
-    allowed_extensions: Optional[Set[str]] = None,
+    allowed_extensions: set[str] | None = None,
 ) -> Path:
     """Validate file path.
 
@@ -563,8 +562,8 @@ def validate_file_path(
 
 
 def validate_json_content(
-    content: str, file_path: Optional[str] = None
-) -> Dict[str, Any]:
+    content: str, file_path: str | None = None
+) -> dict[str, Any]:
     """Validate and parse JSON content.
 
     Args:

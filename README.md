@@ -82,9 +82,12 @@ engine = DocPivotEngine(lexical_config=get_performance_config())
 
 ## 🛠️ Development
 
-DocPivot uses a simplified development setup:
+DocPivot uses a simplified development setup with all configuration centralized in `pyproject.toml` and commands in `Makefile`.
 
 ```bash
+# Setup development environment
+make dev
+
 # Run all checks (CI entry point)
 make all
 
@@ -99,6 +102,9 @@ make format
 
 # Type checking
 make type
+
+# Clean all artifacts
+make clean
 
 # See all commands
 make help
@@ -116,12 +122,25 @@ docpivot/
     └── serializers/   # Format serializers
 ```
 
-### Configuration
+### Configuration Philosophy
 
-All project configuration is centralized in `pyproject.toml`:
-- Project metadata and dependencies
-- Tool configs (Black, Ruff, MyPy, pytest, Coverage)
-- Single `dev` dependency group for all development tools
+All project configuration follows a **single-source-of-truth** approach:
+
+- **`pyproject.toml`** - All tool configurations and metadata
+  - Project metadata (PEP 621)
+  - Dependencies (runtime + single `dev` group)
+  - Tool configs: Black, Ruff (with isort), MyPy, pytest, Coverage
+- **`Makefile`** - Single command hub for all operations
+- **No duplicate configs** - Everything in pyproject.toml
+- **Gradual typing** - Strict for new code, lenient for legacy
+
+Tools automatically read their config from `pyproject.toml`:
+```bash
+black docpivot/          # Reads [tool.black]
+ruff check docpivot/     # Reads [tool.ruff]
+mypy docpivot/           # Reads [tool.mypy]
+pytest tests/            # Reads [tool.pytest.ini_options]
+```
 
 ## 📚 Examples
 

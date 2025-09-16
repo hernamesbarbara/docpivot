@@ -1,9 +1,9 @@
 """Smart defaults for DocPivot operations."""
 
-from typing import Dict, Any
+from typing import Any
 
 
-def get_default_lexical_config() -> Dict[str, Any]:
+def get_default_lexical_config() -> dict[str, Any]:
     """Get default configuration for Lexical JSON serialization.
 
     Returns configuration that handles 90% of use cases.
@@ -24,7 +24,7 @@ def get_default_lexical_config() -> Dict[str, Any]:
     }
 
 
-def get_performance_config() -> Dict[str, Any]:
+def get_performance_config() -> dict[str, Any]:
     """Get configuration optimized for performance.
 
     Minimizes output size and processing overhead.
@@ -41,7 +41,7 @@ def get_performance_config() -> Dict[str, Any]:
     }
 
 
-def get_debug_config() -> Dict[str, Any]:
+def get_debug_config() -> dict[str, Any]:
     """Get configuration for debugging/development.
 
     Maximizes information output for troubleshooting.
@@ -60,7 +60,7 @@ def get_debug_config() -> Dict[str, Any]:
     }
 
 
-def get_minimal_config() -> Dict[str, Any]:
+def get_minimal_config() -> dict[str, Any]:
     """Get minimal configuration for text-only output.
 
     Returns:
@@ -77,7 +77,7 @@ def get_minimal_config() -> Dict[str, Any]:
     }
 
 
-def get_full_config() -> Dict[str, Any]:
+def get_full_config() -> dict[str, Any]:
     """Get configuration with all features enabled.
 
     Returns:
@@ -98,7 +98,7 @@ def get_full_config() -> Dict[str, Any]:
     }
 
 
-def get_web_config() -> Dict[str, Any]:
+def get_web_config() -> dict[str, Any]:
     """Get configuration optimized for web display.
 
     Returns:
@@ -116,7 +116,7 @@ def get_web_config() -> Dict[str, Any]:
     }
 
 
-def merge_configs(*configs: Dict[str, Any]) -> Dict[str, Any]:
+def merge_configs(*configs: dict[str, Any]) -> dict[str, Any]:
     """Merge multiple configuration dictionaries.
 
     Later configs override earlier ones.

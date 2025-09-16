@@ -6,6 +6,7 @@ common document conversion tasks.
 """
 
 from pathlib import Path
+
 from docpivot import DocPivotEngine
 
 # Optional imports for different input types
@@ -134,7 +135,7 @@ def example_4_custom_configuration():
     if HAS_DOCLING_CORE:
         doc = DoclingDocument(name="custom_example")
         result = engine.convert_to_lexical(doc)
-        print(f"✓ Converted with custom settings")
+        print("✓ Converted with custom settings")
 
 
 def example_5_pretty_printing():

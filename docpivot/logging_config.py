@@ -2,11 +2,10 @@
 
 import logging
 import logging.config
-from typing import Dict, Any, Optional
-
+from typing import Any
 
 # Simple logging configuration
-DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
+DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
@@ -76,7 +75,7 @@ def log_exception_with_context(
     logger: logging.Logger,
     exception: Exception,
     operation: str,
-    context: Optional[Dict[str, Any]] = None,
+    context: dict[str, Any] | None = None,
     level: int = logging.ERROR,
 ) -> None:
     """Log exception with operation context.
