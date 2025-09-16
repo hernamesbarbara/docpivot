@@ -1,5 +1,3 @@
-# TODO
-
 ## ✅ Completed (v2.0.0 Refactoring)
 
 - [x] Remove over-engineered code (performance/, plugins, optimized serializer)
@@ -15,61 +13,31 @@
 - [x] Document changes in CHANGELOG.md
 - [x] Create implementation completed report
 
-## 🚀 Future Enhancements (Optional)
+## More Cleanup and Project Organization
 
-### High Priority
-- [ ] Add Markdown output format to DocPivotEngine
-- [ ] Add HTML output format to DocPivotEngine
-- [ ] Create CLI tool using DocPivotEngine
-  ```bash
-  docpivot convert input.pdf --format lexical --output output.json
-  ```
+### Evaluate Files & Folders for Removal
+- [ ] .coverage
+- [ ] .benchmarks/
+- [ ] htmlcov/
 
-### Medium Priority
-- [ ] Add streaming support for large documents
-- [ ] Implement batch processing method
-  ```python
-  engine.convert_batch(files, output_dir)
-  ```
-- [ ] Add progress callbacks for long operations
-- [ ] Create more comprehensive documentation
+### Ensure README Up-to-Date
+- [ ] Look at README.md, pyproject.toml, PROJECT_CONFIG.md, and CHANGELOG.md
+- [ ] Figure out if README is up-to-date for all recent improvements
+- [ ] If PROJECT_CONFIG.md contains anything useful, update the README with the useful bits and remove the PROJECT_CONFIG.md file from the repo to ensure README is single source of truth
 
-### Low Priority
-- [ ] Add async API methods
-- [ ] Implement caching layer for repeated conversions
-- [ ] Add support for more input formats
-- [ ] Create web service wrapper
-- [ ] Add performance benchmarks for new API
+### Validate examples/
+- [ ] Look at each script in examples/ and make sure they are working
 
-## 📝 Documentation TODOs
+### Testing & Tests
+- [ ] Read TESTING.md and confirm that it outlines a testing methodology that includes: TDD, 90% coverage targets, very lightweight and not overkill for a simple project that is only going to be used by me personally and not a lot of developers
+- [ ] Ensure Makefile is used as the entry point for running tests and linting and that this is documented properly in TESTING.md
+- [ ] Create a test suite in the tests/ directory following your finalized TESTING.md methodology. Remember you have data/pdf/ and data/json/ for real-world data to use for testing. Remember you have examples/ which should all be working and can help you craft realistic useful tests. 
+- [ ] Ensure entire test suite takes no longer than 120 seconds to complete
+- [ ] Ensure ruff linting is working
 
-- [ ] Create README with new API examples
-- [ ] Add docstrings to all public methods
-- [ ] Create migration guide from v1 to v2
-- [ ] Add type hints throughout
-- [ ] Create Jupyter notebook examples
+### Cloakpivot Companion TODOs
+- [ ] Look at the cloakpivot repo
+- [ ] Create a plan just like this one such that I can perform the same set of updates you just completed in this TODO.md file in that repo as well. The goal is to make it easy to maintain both docpivot and cloakpivot using the same build and test tooling and the same project organizational structure
 
-## 🧪 Testing TODOs
-
-- [ ] Add integration tests with real documents
-- [ ] Test with large PDF files
-- [ ] Add property-based tests
-- [ ] Test error handling edge cases
-- [ ] Add performance regression tests
-
-## 🐛 Known Issues
-
-None currently reported.
-
-## 💡 Ideas for v3.0.0
-
-- Complete async/await support
-- Plugin system (if actually needed)
-- GraphQL API
-- Cloud storage integration (S3, GCS)
-- Document comparison features
-- Semantic search within documents
-
----
-
-*Last Updated: September 15, 2024*
+### Change summary
+- [ ] Overwrite this section each time you complete a meaningful chunk of work. Commit all meaningful chunks of work to the local feature branch we are on. Update the "Next Up" with a propmt that will help you get started on whatever is next. 
