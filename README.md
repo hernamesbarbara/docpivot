@@ -1,5 +1,7 @@
 # DocPivot
 
+[![CI](https://github.com/hernamesbarbara/docpivot/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hernamesbarbara/docpivot/actions/workflows/ci.yml)
+
 **Version 2.0.0** - Simplified document conversion API for [Docling](https://github.com/DS4SD/docling)
 
 DocPivot provides a clean, one-line API for converting documents between formats, with special focus on Lexical Editor JSON format. Built on top of Docling's powerful document processing capabilities.
