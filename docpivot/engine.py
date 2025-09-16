@@ -7,16 +7,16 @@ from typing import TYPE_CHECKING, Any
 from docling_core.types.doc.document import DoclingDocument
 
 # Optional import for PDF conversion
-if TYPE_CHECKING:
-    from docling.document_converter import DocumentConverter
-
 try:
     from docling.document_converter import DocumentConverter
 
     HAS_DOCLING = True
 except ImportError:
     HAS_DOCLING = False
-    DocumentConverter = None  # type: ignore[misc, assignment]
+    if TYPE_CHECKING:
+        from docling.document_converter import DocumentConverter
+    else:
+        DocumentConverter = None  # type: ignore[assignment, misc]
 
 from docpivot.io.readers.readerfactory import ReaderFactory
 from docpivot.io.serializers.lexicaldocserializer import LexicalDocSerializer
