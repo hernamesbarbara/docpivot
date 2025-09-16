@@ -4,15 +4,15 @@ This module provides comprehensive validation for custom readers and serializers
 to ensure they meet interface requirements and work correctly with DocPivot.
 """
 
+import traceback
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type, Union
-from dataclasses import dataclass
-import traceback
+from typing import Any
 
 from docling_core.transforms.serializer.common import BaseDocSerializer
 from docling_core.types import DoclingDocument
-from docling_core.types.doc import DocumentOrigin, NodeItem, TextItem, GroupItem
+from docling_core.types.doc import DocumentOrigin, GroupItem
 
 from .readers.basereader import BaseReader
 from .readers.custom_reader_base import CustomReaderBase
@@ -35,8 +35,8 @@ class ValidationIssue:
     severity: ValidationSeverity
     message: str
     category: str
-    details: Optional[str] = None
-    suggestion: Optional[str] = None
+    details: str | None = None
+    suggestion: str | None = None
 
     def __str__(self) -> str:
         """String representation of the issue."""
@@ -53,8 +53,8 @@ class ValidationResult:
     """Results of format validation."""
 
     is_valid: bool
-    issues: List[ValidationIssue]
-    tested_features: List[str]
+    issues: list[ValidationIssue]
+    tested_features: list[str]
 
     @property
     def has_errors(self) -> bool:
@@ -73,7 +73,7 @@ class ValidationResult:
 
     def get_issues_by_severity(
         self, severity: ValidationSeverity
-    ) -> List[ValidationIssue]:
+    ) -> list[ValidationIssue]:
         """Get issues by severity level."""
         return [issue for issue in self.issues if issue.severity == severity]
 
@@ -102,9 +102,9 @@ class RoundTripTestResult:
     success: bool
     original_content: str
     serialized_content: str
-    reparsed_content: Optional[str] = None
-    error_message: Optional[str] = None
-    content_matches: Optional[bool] = None
+    reparsed_content: str | None = None
+    error_message: str | None = None
+    content_matches: bool | None = None
 
     def __str__(self) -> str:
         """String representation of the test result."""
@@ -127,7 +127,7 @@ class FormatValidator:
         """Initialize the format validator."""
         pass
 
-    def validate_reader(self, reader_class: Type[BaseReader]) -> ValidationResult:
+    def validate_reader(self, reader_class: type[BaseReader]) -> ValidationResult:
         """Validate a reader implementation.
 
         Args:
@@ -295,7 +295,7 @@ class FormatValidator:
         )
 
     def validate_serializer(
-        self, serializer_class: Type[BaseDocSerializer]
+        self, serializer_class: type[BaseDocSerializer]
     ) -> ValidationResult:
         """Validate a serializer implementation.
 
@@ -474,7 +474,7 @@ class FormatValidator:
         self,
         reader: BaseReader,
         serializer: BaseDocSerializer,
-        test_file: Optional[Union[str, Path]] = None,
+        test_file: str | Path | None = None,
     ) -> RoundTripTestResult:
         """Test reader/serializer compatibility with round-trip conversion.
 
@@ -491,7 +491,7 @@ class FormatValidator:
             if test_file:
                 # Use provided test file
                 doc = reader.load_data(test_file)
-                with open(test_file, "r", encoding="utf-8") as f:
+                with open(test_file, encoding="utf-8") as f:
                     original_content = f.read()
             else:
                 # Create simple test document
@@ -545,10 +545,10 @@ class FormatValidator:
 
     def validate_format_pair(
         self,
-        reader_class: Type[BaseReader],
-        serializer_class: Type[BaseDocSerializer],
-        test_file: Optional[Union[str, Path]] = None,
-    ) -> Dict[str, Any]:
+        reader_class: type[BaseReader],
+        serializer_class: type[BaseDocSerializer],
+        test_file: str | Path | None = None,
+    ) -> dict[str, Any]:
         """Validate a reader/serializer pair for format compatibility.
 
         Args:
@@ -597,7 +597,7 @@ class FormatValidator:
 
         return results
 
-    def get_validation_report(self, results: Dict[str, Any]) -> str:
+    def get_validation_report(self, results: dict[str, Any]) -> str:
         """Generate a human-readable validation report.
 
         Args:

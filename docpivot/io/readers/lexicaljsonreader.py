@@ -1,25 +1,24 @@
 """LexicalJsonReader for loading Lexical JSON files into DoclingDocument objects."""
 
-import json
-import logging
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any
 
 from docling_core.types import DoclingDocument
 from pydantic import ValidationError
 
-from .basereader import BaseReader
-from .exceptions import (
-    UnsupportedFormatError,
-    ValidationError as DocPivotValidationError,
-    TransformationError,
-    FileAccessError,
-)
-from docpivot.validation import validate_lexical_json, validate_json_content
 from docpivot.logging_config import (
     get_logger,
     log_exception_with_context,
+)
+from docpivot.validation import validate_json_content, validate_lexical_json
+
+from .basereader import BaseReader
+from .exceptions import (
+    FileAccessError,
+    TransformationError,
+    UnsupportedFormatError,
+    ValidationError as DocPivotValidationError,
 )
 
 logger = get_logger(__name__)
@@ -36,7 +35,7 @@ class LexicalJsonReader(BaseReader):
     REQUIRED_ROOT_FIELDS = {"root"}
     REQUIRED_ROOT_CHILD_FIELDS = {"children", "type"}
 
-    def load_data(self, file_path: Union[str, Path], **kwargs: Any) -> DoclingDocument:
+    def load_data(self, file_path: str | Path, **kwargs: Any) -> DoclingDocument:
         """Load document from Lexical JSON file into DoclingDocument.
 
         Args:
@@ -100,7 +99,7 @@ class LexicalJsonReader(BaseReader):
                     context={"encoding": "utf-8", "original_error": str(e)},
                     cause=e,
                 ) from e
-            except IOError as e:
+            except OSError as e:
                 raise FileAccessError(
                     f"Error reading file '{file_path_str}': {e}. "
                     f"Please check file permissions and disk space.",
@@ -172,7 +171,7 @@ class LexicalJsonReader(BaseReader):
                 cause=e,
             ) from e
 
-    def detect_format(self, file_path: Union[str, Path]) -> bool:
+    def detect_format(self, file_path: str | Path) -> bool:
         """Detect if this reader can handle the given file format.
 
         Checks for .lexical.json extension and optionally validates the
@@ -223,11 +222,11 @@ class LexicalJsonReader(BaseReader):
             # Quick check for Lexical JSON markers
             return '"root"' in chunk and '"children"' in chunk and '"type"' in chunk
 
-        except (IOError, UnicodeDecodeError):
+        except (OSError, UnicodeDecodeError):
             return False
 
     def _validate_lexical_schema(
-        self, json_data: Dict[str, Any], file_path: str
+        self, json_data: dict[str, Any], file_path: str
     ) -> None:
         """Validate that JSON data has expected Lexical schema structure.
 
@@ -270,7 +269,7 @@ class LexicalJsonReader(BaseReader):
             )
 
     def _convert_lexical_to_docling(
-        self, lexical_data: Dict[str, Any], file_path: str
+        self, lexical_data: dict[str, Any], file_path: str
     ) -> DoclingDocument:
         """Convert Lexical JSON data to DoclingDocument.
 
@@ -326,7 +325,7 @@ class LexicalJsonReader(BaseReader):
             ) from e
 
     def _process_lexical_nodes(
-        self, nodes: List[Dict[str, Any]], doc_data: Dict[str, Any]
+        self, nodes: list[dict[str, Any]], doc_data: dict[str, Any]
     ) -> None:
         """Process Lexical nodes and convert to Docling elements.
 
@@ -347,7 +346,7 @@ class LexicalJsonReader(BaseReader):
                 self._process_table_node(node, doc_data)
 
     def _process_heading_node(
-        self, node: Dict[str, Any], doc_data: Dict[str, Any]
+        self, node: dict[str, Any], doc_data: dict[str, Any]
     ) -> None:
         """Process a Lexical heading node into Docling SectionHeaderItem.
 
@@ -382,7 +381,7 @@ class LexicalJsonReader(BaseReader):
         doc_data["body"]["children"].append({"$ref": f"#/texts/{text_index}"})
 
     def _process_paragraph_node(
-        self, node: Dict[str, Any], doc_data: Dict[str, Any]
+        self, node: dict[str, Any], doc_data: dict[str, Any]
     ) -> None:
         """Process a Lexical paragraph node into Docling TextItem.
 
@@ -412,7 +411,7 @@ class LexicalJsonReader(BaseReader):
         doc_data["body"]["children"].append({"$ref": f"#/texts/{text_index}"})
 
     def _process_list_node(
-        self, node: Dict[str, Any], doc_data: Dict[str, Any]
+        self, node: dict[str, Any], doc_data: dict[str, Any]
     ) -> None:
         """Process a Lexical list node into Docling GroupItem.
 
@@ -424,7 +423,7 @@ class LexicalJsonReader(BaseReader):
         list_items = node.get("children", [])
 
         # Create text items for each list item
-        group_children: List[Dict[str, str]] = []
+        group_children: list[dict[str, str]] = []
         for item in list_items:
             if item.get("type") == "listitem":
                 text_content = self._extract_text_from_children(
@@ -473,7 +472,7 @@ class LexicalJsonReader(BaseReader):
             doc_data["body"]["children"].append({"$ref": f"#/groups/{group_index}"})
 
     def _process_table_node(
-        self, node: Dict[str, Any], doc_data: Dict[str, Any]
+        self, node: dict[str, Any], doc_data: dict[str, Any]
     ) -> None:
         """Process a Lexical table node into Docling TableItem.
 
@@ -523,7 +522,7 @@ class LexicalJsonReader(BaseReader):
 
             doc_data["body"]["children"].append({"$ref": f"#/tables/{table_index}"})
 
-    def _extract_text_from_children(self, children: List[Dict[str, Any]]) -> str:
+    def _extract_text_from_children(self, children: list[dict[str, Any]]) -> str:
         """Extract text content from Lexical node children.
 
         Args:

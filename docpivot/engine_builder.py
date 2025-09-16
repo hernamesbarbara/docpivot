@@ -1,6 +1,7 @@
 """Builder pattern for DocPivotEngine configuration."""
 
-from typing import Optional, Dict, Any
+from typing import Any
+
 from docpivot.engine import DocPivotEngine
 
 
@@ -14,7 +15,7 @@ class DocPivotEngineBuilder:
         self._custom_serializers = {}
         self._custom_readers = {}
 
-    def with_lexical_config(self, config: Dict[str, Any]) -> 'DocPivotEngineBuilder':
+    def with_lexical_config(self, config: dict[str, Any]) -> 'DocPivotEngineBuilder':
         """Set Lexical serialization configuration.
 
         Args:

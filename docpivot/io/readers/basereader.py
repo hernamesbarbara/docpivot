@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 from docling_core.types import DoclingDocument
 
@@ -19,7 +19,7 @@ class BaseReader(ABC):
         self.config = kwargs
 
     @abstractmethod
-    def load_data(self, file_path: Union[str, Path], **kwargs: Any) -> DoclingDocument:
+    def load_data(self, file_path: str | Path, **kwargs: Any) -> DoclingDocument:
         """Load and parse a document from the given file path.
 
         Args:
@@ -37,7 +37,7 @@ class BaseReader(ABC):
         raise NotImplementedError("Subclasses must implement load_data method")
 
     @classmethod
-    def is_supported_format(cls, file_path: Union[str, Path]) -> bool:
+    def is_supported_format(cls, file_path: str | Path) -> bool:
         """Check if the given file format is supported by this reader.
 
         Args:
@@ -48,7 +48,7 @@ class BaseReader(ABC):
         """
         return False
 
-    def detect_format(self, file_path: Union[str, Path]) -> bool:
+    def detect_format(self, file_path: str | Path) -> bool:
         """Detect if this reader can handle the given file format.
 
         Default implementation returns False. Subclasses should override
@@ -62,7 +62,7 @@ class BaseReader(ABC):
         """
         return False
 
-    def _validate_file_exists(self, file_path: Union[str, Path]) -> Path:
+    def _validate_file_exists(self, file_path: str | Path) -> Path:
         """Validate that the file exists and return as Path object.
 
         Args:
@@ -82,7 +82,7 @@ class BaseReader(ABC):
             raise IsADirectoryError(f"Path is a directory: {file_path}")
         return path
 
-    def _get_format_error_message(self, file_path: Union[str, Path]) -> str:
+    def _get_format_error_message(self, file_path: str | Path) -> str:
         """Generate a descriptive error message for unsupported file format.
 
         Args:

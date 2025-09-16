@@ -2,25 +2,27 @@
 objects."""
 
 import json
-import time
 import mmap
+import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Dict, Union, Optional, Callable
+from typing import Any
 
 from docling_core.types import DoclingDocument
 from pydantic import ValidationError
 
-from .basereader import BaseReader
-from .exceptions import (
-    ValidationError as DocPivotValidationError,
-    SchemaValidationError,
-    FileAccessError,
-    UnsupportedFormatError,
-)
-from docpivot.validation import validate_docling_document
 from docpivot.logging_config import (
     get_logger,
     log_exception_with_context,
+)
+from docpivot.validation import validate_docling_document
+
+from .basereader import BaseReader
+from .exceptions import (
+    FileAccessError,
+    SchemaValidationError,
+    UnsupportedFormatError,
+    ValidationError as DocPivotValidationError,
 )
 
 logger = get_logger(__name__)
@@ -54,10 +56,10 @@ class DoclingJsonReader(BaseReader):
 
     def __init__(
         self,
-        use_streaming: Optional[bool] = None,
+        use_streaming: bool | None = None,
         use_fast_json: bool = True,
         enable_caching: bool = False,
-        progress_callback: Optional[Callable[[float], None]] = None,
+        progress_callback: Callable[[float], None] | None = None,
         streaming_threshold_bytes: int = DEFAULT_STREAMING_THRESHOLD_BYTES,
         large_file_threshold_bytes: int = DEFAULT_LARGE_FILE_THRESHOLD_BYTES,
         **kwargs: Any,
@@ -83,7 +85,7 @@ class DoclingJsonReader(BaseReader):
         self.large_file_threshold_bytes = large_file_threshold_bytes
 
         # Document cache - key by (absolute_path, size, mtime)
-        self._document_cache: Dict[tuple, DoclingDocument] = {}
+        self._document_cache: dict[tuple, DoclingDocument] = {}
 
         # JSON parser selection
         self._json_parser = self._select_json_parser()
@@ -93,7 +95,7 @@ class DoclingJsonReader(BaseReader):
             f"{getattr(self._json_parser, '__name__', type(self._json_parser).__name__)}"
         )
 
-    def load_data(self, file_path: Union[str, Path], **kwargs: Any) -> DoclingDocument:
+    def load_data(self, file_path: str | Path, **kwargs: Any) -> DoclingDocument:
         """Load document from .docling.json file.
 
         Args:
@@ -214,15 +216,14 @@ class DoclingJsonReader(BaseReader):
         """Choose the optimal loading strategy based on file size and configuration."""
         if self.use_streaming is True:
             return "streaming"
-        elif self.use_streaming is False:
+        if self.use_streaming is False:
             return "standard" if file_size < self.large_file_threshold_bytes else "mmap"
-        else:  # Auto-detect based on file size
-            if file_size > self.streaming_threshold_bytes:
-                return "streaming"
-            elif file_size > self.large_file_threshold_bytes:
-                return "mmap"
-            else:
-                return "standard"
+        # Auto-detect based on file size
+        if file_size > self.streaming_threshold_bytes:
+            return "streaming"
+        if file_size > self.large_file_threshold_bytes:
+            return "mmap"
+        return "standard"
 
     def _load_standard(self, path: Path, file_size: int) -> DoclingDocument:
         """Load document using standard file reading."""
@@ -245,7 +246,7 @@ class DoclingJsonReader(BaseReader):
                     context={"encoding": "utf-8", "original_error": str(e)},
                     cause=e,
                 ) from e
-            except IOError as e:
+            except OSError as e:
                 raise FileAccessError(
                     f"Error reading file '{path}': {e}. "
                     f"Please check file permissions and disk space.",
@@ -344,7 +345,7 @@ class DoclingJsonReader(BaseReader):
 
             # Use buffered I/O for large files
             with open(
-                path, "r", encoding="utf-8", buffering=JSON_PARSER_BUFFER_SIZE
+                path, encoding="utf-8", buffering=JSON_PARSER_BUFFER_SIZE
             ) as f:
 
                 if self.progress_callback:
@@ -364,7 +365,7 @@ class DoclingJsonReader(BaseReader):
                         context={"encoding": "utf-8", "original_error": str(e)},
                         cause=e,
                     ) from e
-                except IOError as e:
+                except OSError as e:
                     raise FileAccessError(
                         f"Error reading streaming file '{path}': {e}",
                         str(path),
@@ -395,7 +396,7 @@ class DoclingJsonReader(BaseReader):
             if self.progress_callback:
                 self.progress_callback(1.0)
 
-    def _parse_json(self, content: str) -> Dict[str, Any]:
+    def _parse_json(self, content: str) -> dict[str, Any]:
         """Parse JSON content with the selected parser."""
         parser_name = getattr(self._json_parser, '__name__', type(self._json_parser).__name__)
 
@@ -433,7 +434,7 @@ class DoclingJsonReader(BaseReader):
                 cause=e,
             ) from e
 
-    def _parse_json_buffered(self, content: str) -> Dict[str, Any]:
+    def _parse_json_buffered(self, content: str) -> dict[str, Any]:
         """Parse JSON content optimized for streaming/large files."""
         # For very large JSON files, use the selected fast parser if available
         if hasattr(self._json_parser, "loads") and self._json_parser != json:
@@ -454,7 +455,7 @@ class DoclingJsonReader(BaseReader):
             ) from e
 
     def _validate_and_create_document(
-        self, json_data: Dict[str, Any], file_path: str
+        self, json_data: dict[str, Any], file_path: str
     ) -> DoclingDocument:
         """Validate JSON data and create DoclingDocument."""
         try:
@@ -463,20 +464,20 @@ class DoclingJsonReader(BaseReader):
             if isinstance(json_data, dict):
                 version = json_data.get("version", "unknown")
                 logger.debug(f"Processing DoclingDocument version {version} from {file_path}")
-            
+
             # Validate DoclingDocument schema
             validate_docling_document(json_data, file_path)
 
             # Create DoclingDocument
             document = DoclingDocument.model_validate(json_data)
-            
+
             # Log version-specific handling info
             if version == "1.7.0":
                 logger.info(
                     f"Loaded DoclingDocument v1.7.0 from {file_path}. "
                     "Note: This version uses segment-local charspans (each segment starts at 0)."
                 )
-            
+
             return document
 
         except ValidationError as e:
@@ -562,7 +563,7 @@ class DoclingJsonReader(BaseReader):
             self._document_cache.clear()
             logger.info(f"Cleared document cache ({cache_size} entries)")
 
-    def get_cache_info(self) -> Dict[str, Any]:
+    def get_cache_info(self) -> dict[str, Any]:
         """Get information about the document cache."""
         return {
             "enabled": self.enable_caching,
@@ -570,7 +571,7 @@ class DoclingJsonReader(BaseReader):
             "files": [cache_key[0] for cache_key in self._document_cache.keys()],
         }
 
-    def detect_format(self, file_path: Union[str, Path]) -> bool:
+    def detect_format(self, file_path: str | Path) -> bool:
         """Detect if this reader can handle the given file format.
 
         Checks for .docling.json extension and optionally validates the
@@ -629,7 +630,7 @@ class DoclingJsonReader(BaseReader):
         """
         try:
             # Read only the first chunk to check for markers (optimized)
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 chunk = f.read(1024)  # Read first 1KB only
 
             # Quick string search for DoclingDocument markers
@@ -643,7 +644,7 @@ class DoclingJsonReader(BaseReader):
             )
             return has_markers
 
-        except (IOError, UnicodeDecodeError) as e:
+        except (OSError, UnicodeDecodeError) as e:
             logger.debug(f"Error reading content from {path} for format detection: {e}")
             return False
 
@@ -652,7 +653,7 @@ class DoclingJsonReader(BaseReader):
         return self._check_docling_json_content_optimized(path)
 
     def _validate_docling_schema(
-        self, json_data: Dict[str, Any], file_path: str
+        self, json_data: dict[str, Any], file_path: str
     ) -> None:
         """Validate that JSON data has expected DoclingDocument schema structure.
 

@@ -5,7 +5,7 @@ throughout DocPivot, enabling clear error reporting and programmatic
 error handling.
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 
 class DocPivotError(Exception):
@@ -19,9 +19,9 @@ class DocPivotError(Exception):
     def __init__(
         self,
         message: str,
-        error_code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None,
-        cause: Optional[Exception] = None,
+        error_code: str | None = None,
+        context: dict[str, Any] | None = None,
+        cause: Exception | None = None,
     ):
         """Initialize DocPivotError.
 
@@ -64,8 +64,8 @@ class ValidationError(DocPivotError):
     def __init__(
         self,
         message: str,
-        field_errors: Optional[Dict[str, List[str]]] = None,
-        validation_rules: Optional[List[str]] = None,
+        field_errors: dict[str, list[str]] | None = None,
+        validation_rules: list[str] | None = None,
         **kwargs: Any,
     ):
         """Initialize ValidationError.
@@ -110,8 +110,8 @@ class TransformationError(DocPivotError):
     def __init__(
         self,
         message: str,
-        transformation_type: Optional[str] = None,
-        recovery_suggestions: Optional[List[str]] = None,
+        transformation_type: str | None = None,
+        recovery_suggestions: list[str] | None = None,
         **kwargs: Any,
     ):
         """Initialize TransformationError.
@@ -137,8 +137,8 @@ class ConfigurationError(DocPivotError):
     def __init__(
         self,
         message: str,
-        invalid_parameters: Optional[List[str]] = None,
-        valid_options: Optional[Dict[str, List[str]]] = None,
+        invalid_parameters: list[str] | None = None,
+        valid_options: dict[str, list[str]] | None = None,
         **kwargs: Any,
     ):
         """Initialize ConfigurationError.
@@ -165,8 +165,8 @@ class UnsupportedFormatError(DocPivotError, ValueError):
     def __init__(
         self,
         file_path: str,
-        supported_formats: Optional[List[str]] = None,
-        detected_format: Optional[str] = None,
+        supported_formats: list[str] | None = None,
+        detected_format: str | None = None,
         **kwargs: Any,
     ):
         """Initialize UnsupportedFormatError.
@@ -266,10 +266,10 @@ class SchemaValidationError(ValidationError):
     def __init__(
         self,
         message: str,
-        schema_name: Optional[str] = None,
-        expected_schema: Optional[str] = None,
-        actual_schema: Optional[str] = None,
-        missing_fields: Optional[List[str]] = None,
+        schema_name: str | None = None,
+        expected_schema: str | None = None,
+        actual_schema: str | None = None,
+        missing_fields: list[str] | None = None,
         **kwargs: Any,
     ):
         """Initialize SchemaValidationError.

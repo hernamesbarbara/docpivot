@@ -5,7 +5,7 @@ managing custom readers and serializers in DocPivot.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any
 
 from docling_core.transforms.serializer.common import BaseDocSerializer
 from docling_core.types import DoclingDocument
@@ -21,8 +21,8 @@ class FormatInfo:
     def __init__(
         self,
         format_name: str,
-        reader_class: Optional[Type[BaseReader]] = None,
-        serializer_class: Optional[Type[BaseDocSerializer]] = None,
+        reader_class: type[BaseReader] | None = None,
+        serializer_class: type[BaseDocSerializer] | None = None,
     ):
         """Initialize format information.
 
@@ -45,7 +45,7 @@ class FormatInfo:
         """Check if this format has a serializer."""
         return self.serializer_class is not None
 
-    def get_capabilities(self) -> Dict[str, Any]:
+    def get_capabilities(self) -> dict[str, Any]:
         """Get combined capabilities from reader and serializer.
 
         Returns:
@@ -76,7 +76,6 @@ class FormatInfo:
                 # Create with empty doc for capability inspection
                 from docling_core.types.doc.document import (
                     DocumentOrigin,
-                    NodeItem,
                     GroupItem,
                 )
 
@@ -111,7 +110,7 @@ class FormatRegistry:
 
     def __init__(self):
         """Initialize the format registry."""
-        self._formats: Dict[str, FormatInfo] = {}
+        self._formats: dict[str, FormatInfo] = {}
         self._register_builtin_formats()
 
     def _register_builtin_formats(self) -> None:
@@ -129,11 +128,11 @@ class FormatRegistry:
             self.register_serializer("lexical", LexicalDocSerializer)
 
             # Register Docling core serializers
+            from docling_core.transforms.serializer.doctags import DocTagsDocSerializer
+            from docling_core.transforms.serializer.html import HTMLDocSerializer
             from docling_core.transforms.serializer.markdown import (
                 MarkdownDocSerializer,
             )
-            from docling_core.transforms.serializer.doctags import DocTagsDocSerializer
-            from docling_core.transforms.serializer.html import HTMLDocSerializer
 
             self.register_serializer("markdown", MarkdownDocSerializer)
             self.register_serializer("md", MarkdownDocSerializer)
@@ -144,7 +143,7 @@ class FormatRegistry:
             # Some formats may not be available - that's okay
             pass
 
-    def register_reader(self, format_name: str, reader_class: Type[BaseReader]) -> None:
+    def register_reader(self, format_name: str, reader_class: type[BaseReader]) -> None:
         """Register a reader class for a format.
 
         Args:
@@ -173,7 +172,7 @@ class FormatRegistry:
             )
 
     def register_serializer(
-        self, format_name: str, serializer_class: Type[BaseDocSerializer]
+        self, format_name: str, serializer_class: type[BaseDocSerializer]
     ) -> None:
         """Register a serializer class for a format.
 
@@ -205,8 +204,8 @@ class FormatRegistry:
     def register_format(
         self,
         format_name: str,
-        reader_class: Optional[Type[BaseReader]] = None,
-        serializer_class: Optional[Type[BaseDocSerializer]] = None,
+        reader_class: type[BaseReader] | None = None,
+        serializer_class: type[BaseDocSerializer] | None = None,
     ) -> None:
         """Register both reader and serializer for a format.
 
@@ -227,7 +226,7 @@ class FormatRegistry:
         if serializer_class:
             self.register_serializer(format_name, serializer_class)
 
-    def get_reader_for_format(self, format_name: str) -> Optional[Type[BaseReader]]:
+    def get_reader_for_format(self, format_name: str) -> type[BaseReader] | None:
         """Get reader class for a format.
 
         Args:
@@ -242,7 +241,7 @@ class FormatRegistry:
 
     def get_serializer_for_format(
         self, format_name: str
-    ) -> Optional[Type[BaseDocSerializer]]:
+    ) -> type[BaseDocSerializer] | None:
         """Get serializer class for a format.
 
         Args:
@@ -255,7 +254,7 @@ class FormatRegistry:
         format_info = self._formats.get(format_key)
         return format_info.serializer_class if format_info else None
 
-    def get_reader_for_file(self, file_path: Union[str, Path]) -> Optional[BaseReader]:
+    def get_reader_for_file(self, file_path: str | Path) -> BaseReader | None:
         """Get appropriate reader instance for a file.
 
         This method tries to find the best reader for the given file by
@@ -287,7 +286,7 @@ class FormatRegistry:
 
         return None
 
-    def discover_formats(self) -> Dict[str, Dict[str, Any]]:
+    def discover_formats(self) -> dict[str, dict[str, Any]]:
         """Discover all available formats and their capabilities.
 
         Returns:
@@ -300,7 +299,7 @@ class FormatRegistry:
 
         return result
 
-    def list_formats(self) -> List[str]:
+    def list_formats(self) -> list[str]:
         """List all registered format names.
 
         Returns:
@@ -308,7 +307,7 @@ class FormatRegistry:
         """
         return list(self._formats.keys())
 
-    def list_readable_formats(self) -> List[str]:
+    def list_readable_formats(self) -> list[str]:
         """List formats that can be read (have readers).
 
         Returns:
@@ -320,7 +319,7 @@ class FormatRegistry:
             if format_info.has_reader
         ]
 
-    def list_writable_formats(self) -> List[str]:
+    def list_writable_formats(self) -> list[str]:
         """List formats that can be written (have serializers).
 
         Returns:
@@ -370,7 +369,7 @@ class FormatRegistry:
         format_info = self._formats.get(format_key)
         return format_info.has_serializer if format_info else False
 
-    def get_supported_extensions(self) -> List[str]:
+    def get_supported_extensions(self) -> list[str]:
         """Get all supported file extensions from registered readers.
 
         Returns:
@@ -414,7 +413,7 @@ class FormatRegistry:
         """
         self._formats.clear()
 
-    def get_format_info(self, format_name: str) -> Optional[FormatInfo]:
+    def get_format_info(self, format_name: str) -> FormatInfo | None:
         """Get detailed information about a format.
 
         Args:
@@ -428,7 +427,7 @@ class FormatRegistry:
 
 
 # Global registry instance
-_global_registry: Optional[FormatRegistry] = None
+_global_registry: FormatRegistry | None = None
 
 
 def get_format_registry() -> FormatRegistry:

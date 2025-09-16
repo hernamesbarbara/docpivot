@@ -1,15 +1,13 @@
 """Serializer provider following Docling's factory pattern with extensibility support."""
 
-from typing import Any, Dict, Type, Union, Optional
+# Forward reference for LexicalDocSerializer to avoid circular imports
+from typing import TYPE_CHECKING, Any, Union
 
 from docling_core.transforms.serializer.common import BaseDocSerializer
-from docling_core.transforms.serializer.markdown import MarkdownDocSerializer
 from docling_core.transforms.serializer.doctags import DocTagsDocSerializer
 from docling_core.transforms.serializer.html import HTMLDocSerializer
+from docling_core.transforms.serializer.markdown import MarkdownDocSerializer
 from docling_core.types import DoclingDocument
-
-# Forward reference for LexicalDocSerializer to avoid circular imports
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from docpivot.io.serializers.lexicaldocserializer import LexicalDocSerializer
@@ -21,7 +19,7 @@ AnySerializer = Union[BaseDocSerializer, "LexicalDocSerializer"]
 class SerializerProvider:
     """Factory for creating serializer instances following Docling patterns with extensibility support."""
 
-    _serializers: Dict[str, Type[BaseDocSerializer]] = {
+    _serializers: dict[str, type[BaseDocSerializer]] = {
         "markdown": MarkdownDocSerializer,
         "md": MarkdownDocSerializer,
         "doctags": DocTagsDocSerializer,
@@ -32,7 +30,7 @@ class SerializerProvider:
     _registry_integration_enabled = True
 
     @classmethod
-    def _get_lexical_serializer(cls) -> Type["LexicalDocSerializer"]:
+    def _get_lexical_serializer(cls) -> type["LexicalDocSerializer"]:
         """Import LexicalDocSerializer to avoid circular imports."""
         from docpivot.io.serializers.lexicaldocserializer import LexicalDocSerializer
 
@@ -65,7 +63,7 @@ class SerializerProvider:
         if format_key == "lexical":
             serializer_cls: Any = cls._get_lexical_serializer()
             return serializer_cls(doc=doc, **kwargs)  # type: ignore[call-arg]
-        elif format_key in cls._serializers:
+        if format_key in cls._serializers:
             serializer_cls = cls._serializers[format_key]
             return serializer_cls(doc=doc, **kwargs)  # type: ignore[call-arg]
 
@@ -92,7 +90,7 @@ class SerializerProvider:
 
     @classmethod
     def register_serializer(
-        cls, format_name: str, serializer_cls: Type[BaseDocSerializer]
+        cls, format_name: str, serializer_cls: type[BaseDocSerializer]
     ) -> None:
         """Register a new serializer for a format.
 
@@ -170,7 +168,7 @@ class SerializerProvider:
         return False
 
     @classmethod
-    def discover_formats(cls) -> Dict[str, Dict[str, Any]]:
+    def discover_formats(cls) -> dict[str, dict[str, Any]]:
         """Discover all available serialization formats and their capabilities.
 
         Returns:

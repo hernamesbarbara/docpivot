@@ -1,18 +1,15 @@
 """Tests for the simplified DocPivot API."""
 
-import json
-import pytest
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 from docling_core.types import DoclingDocument
+
 from docpivot import (
-    DocPivotEngine,
-    DocPivotEngineBuilder,
     ConversionResult,
+    DocPivotEngine,
+    get_debug_config,
     get_default_lexical_config,
     get_performance_config,
-    get_debug_config,
 )
 
 

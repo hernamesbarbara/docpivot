@@ -6,10 +6,9 @@ direct Docling usage, but with DocPivot's simplified API and additional
 output format (Lexical).
 """
 
-import os
-import sys
-import json
 import html
+import json
+import sys
 from pathlib import Path
 
 # DocPivot simplified API
@@ -17,8 +16,8 @@ from docpivot import DocPivotEngine
 
 # Optional Docling imports for PDF conversion
 try:
-    from docling.document_converter import DocumentConverter
     from docling.datamodel.document import ConversionResult
+    from docling.document_converter import DocumentConverter
     from docling_core.types import DoclingDocument
     HAS_DOCLING = True
 except ImportError:
@@ -50,7 +49,7 @@ def convert_pdf_to_multiple_formats(pdf_path: Path, output_dir: Path):
     doc_filename = conv_result.input.file.stem
     dl_doc: DoclingDocument = conv_result.document
 
-    print(f"   ✓ Converted to DoclingDocument")
+    print("   ✓ Converted to DoclingDocument")
     print(f"   Document name: {dl_doc.name}")
 
     # Step 2: Export to Markdown (native Docling)

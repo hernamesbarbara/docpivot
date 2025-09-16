@@ -5,11 +5,11 @@ that extend DocPivot's functionality to support additional output formats.
 """
 
 from abc import abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any
 
+from docling_core.transforms.serializer.base import SerializationResult
 from docling_core.transforms.serializer.common import BaseDocSerializer
 from docling_core.types import DoclingDocument
-from docling_core.transforms.serializer.base import SerializationResult
 
 
 class CustomSerializerParams:
@@ -58,8 +58,8 @@ class CustomSerializerBase(BaseDocSerializer):
     def __init__(
         self,
         doc: DoclingDocument,
-        params: Optional[CustomSerializerParams] = None,
-        component_serializers: Optional[Dict[str, Any]] = None,
+        params: CustomSerializerParams | None = None,
+        component_serializers: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the custom serializer following Docling patterns.
@@ -97,7 +97,7 @@ class CustomSerializerBase(BaseDocSerializer):
         raise NotImplementedError("Subclasses must define file_extension")
 
     @property
-    def format_description(self) -> Optional[str]:
+    def format_description(self) -> str | None:
         """Optional detailed description of the output format.
 
         Returns:
@@ -115,7 +115,7 @@ class CustomSerializerBase(BaseDocSerializer):
         return "1.0.0"
 
     @property
-    def capabilities(self) -> Dict[str, bool]:
+    def capabilities(self) -> dict[str, bool]:
         """Capabilities supported by this serializer.
 
         Returns:
@@ -155,7 +155,7 @@ class CustomSerializerBase(BaseDocSerializer):
         """
         raise NotImplementedError("Subclasses must implement serialize method")
 
-    def get_supported_features(self) -> Dict[str, bool]:
+    def get_supported_features(self) -> dict[str, bool]:
         """Get features supported by this serializer.
 
         Returns:
@@ -177,7 +177,7 @@ class CustomSerializerBase(BaseDocSerializer):
 
         # Subclasses can override to add format-specific validation
 
-    def get_metadata(self) -> Dict[str, Any]:
+    def get_metadata(self) -> dict[str, Any]:
         """Get serializer metadata.
 
         Returns:
@@ -237,7 +237,7 @@ class CustomSerializerBase(BaseDocSerializer):
         extract_text(self.doc.body)
         return "\n".join(text_parts)
 
-    def _serialize_with_structure(self) -> Dict[str, Any]:
+    def _serialize_with_structure(self) -> dict[str, Any]:
         """Helper method to serialize document with structure preservation.
 
         This method creates a structured representation of the document
@@ -265,7 +265,7 @@ class CustomSerializerBase(BaseDocSerializer):
 
         return result
 
-    def _item_to_dict(self, item) -> Dict[str, Any]:
+    def _item_to_dict(self, item) -> dict[str, Any]:
         """Convert a document item to dictionary representation.
 
         Args:

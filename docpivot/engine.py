@@ -1,8 +1,8 @@
 """DocPivotEngine - Simple API for document format conversion."""
 
-from typing import Optional, Dict, Any, Union
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 from docling_core.types import DoclingDocument
 
@@ -14,8 +14,8 @@ except ImportError:
     HAS_DOCLING = False
     DocumentConverter = None
 
-from docpivot.io.serializers.lexicaldocserializer import LexicalDocSerializer
 from docpivot.io.readers.readerfactory import ReaderFactory
+from docpivot.io.serializers.lexicaldocserializer import LexicalDocSerializer
 
 
 @dataclass
@@ -23,7 +23,7 @@ class ConversionResult:
     """Result of a document conversion."""
     content: str  # The converted content (JSON, etc.)
     format: str   # Output format used
-    metadata: Dict[str, Any]  # Conversion metadata
+    metadata: dict[str, Any]  # Conversion metadata
 
 
 class DocPivotEngine:
@@ -45,7 +45,7 @@ class DocPivotEngine:
     """
 
     def __init__(self,
-                 lexical_config: Optional[Dict[str, Any]] = None,
+                 lexical_config: dict[str, Any] | None = None,
                  default_format: str = "lexical"):
         """Initialize with smart defaults.
 
@@ -59,7 +59,7 @@ class DocPivotEngine:
         self._reader_factory = ReaderFactory()
         self._converter = None  # Lazy init for DocumentConverter
 
-    def _get_default_lexical_config(self) -> Dict[str, Any]:
+    def _get_default_lexical_config(self) -> dict[str, Any]:
         """Get default configuration for Lexical JSON serialization."""
         return {
             "pretty": False,  # Compact by default
@@ -119,9 +119,9 @@ class DocPivotEngine:
         )
 
     def convert_file(self,
-                    input_path: Union[str, Path],
+                    input_path: str | Path,
                     output_format: str = "lexical",
-                    output_path: Optional[Union[str, Path]] = None,
+                    output_path: str | Path | None = None,
                     **kwargs) -> ConversionResult:
         """Convert a file to the specified format.
 
@@ -152,7 +152,7 @@ class DocPivotEngine:
         return result
 
     def convert_pdf(self,
-                   pdf_path: Union[str, Path],
+                   pdf_path: str | Path,
                    output_format: str = "lexical",
                    **kwargs) -> ConversionResult:
         """Convert PDF to specified format using Docling.
@@ -184,8 +184,7 @@ class DocPivotEngine:
         # Convert to target format
         if output_format == "lexical":
             return self.convert_to_lexical(document, **kwargs)
-        else:
-            raise ValueError(f"Unsupported output format: {output_format}")
+        raise ValueError(f"Unsupported output format: {output_format}")
 
     @classmethod
     def builder(cls) -> 'DocPivotEngineBuilder':

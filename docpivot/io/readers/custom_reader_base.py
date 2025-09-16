@@ -6,7 +6,7 @@ that extend DocPivot's functionality to support additional file formats.
 
 from abc import abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Union, Optional
+from typing import Any
 
 from docling_core.types import DoclingDocument
 
@@ -40,7 +40,7 @@ class CustomReaderBase(BaseReader):
 
     @property
     @abstractmethod
-    def supported_extensions(self) -> List[str]:
+    def supported_extensions(self) -> list[str]:
         """File extensions this reader supports.
 
         Returns:
@@ -59,7 +59,7 @@ class CustomReaderBase(BaseReader):
         raise NotImplementedError("Subclasses must define format_name")
 
     @property
-    def format_description(self) -> Optional[str]:
+    def format_description(self) -> str | None:
         """Optional detailed description of the format.
 
         Returns:
@@ -77,7 +77,7 @@ class CustomReaderBase(BaseReader):
         return "1.0.0"
 
     @property
-    def capabilities(self) -> Dict[str, bool]:
+    def capabilities(self) -> dict[str, bool]:
         """Capabilities supported by this reader.
 
         Returns:
@@ -92,7 +92,7 @@ class CustomReaderBase(BaseReader):
         }
 
     @abstractmethod
-    def can_handle(self, file_path: Union[str, Path]) -> bool:
+    def can_handle(self, file_path: str | Path) -> bool:
         """Check if this reader can handle the given file.
 
         This method should implement format detection logic, which may include:
@@ -108,7 +108,7 @@ class CustomReaderBase(BaseReader):
         """
         raise NotImplementedError("Subclasses must implement can_handle method")
 
-    def detect_format(self, file_path: Union[str, Path]) -> bool:
+    def detect_format(self, file_path: str | Path) -> bool:
         """Detect if this reader can handle the given file format.
 
         Default implementation delegates to can_handle method.
@@ -122,7 +122,7 @@ class CustomReaderBase(BaseReader):
         return self.can_handle(file_path)
 
     @classmethod
-    def is_supported_format(cls, file_path: Union[str, Path]) -> bool:
+    def is_supported_format(cls, file_path: str | Path) -> bool:
         """Check if the given file format is supported by this reader class.
 
         This is a class method that can be called without instantiation.
@@ -142,7 +142,7 @@ class CustomReaderBase(BaseReader):
         except Exception:
             return False
 
-    def validate_file_format(self, file_path: Union[str, Path]) -> None:
+    def validate_file_format(self, file_path: str | Path) -> None:
         """Validate that the file format is compatible with this reader.
 
         Args:
@@ -162,7 +162,7 @@ class CustomReaderBase(BaseReader):
                 f"Supported extensions: {', '.join(self.supported_extensions)}"
             )
 
-    def get_metadata(self, file_path: Union[str, Path]) -> Dict[str, Any]:
+    def get_metadata(self, file_path: str | Path) -> dict[str, Any]:
         """Extract metadata from the file without full parsing.
 
         This is an optional method that readers can implement to provide

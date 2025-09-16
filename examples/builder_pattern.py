@@ -5,8 +5,7 @@ This example demonstrates the fluent builder API for creating
 DocPivotEngine instances with various configurations.
 """
 
-from pathlib import Path
-from docpivot import DocPivotEngine, DocPivotEngineBuilder
+from docpivot import DocPivotEngine
 
 # Optional imports
 try:
@@ -135,12 +134,12 @@ def example_7_preset_configurations():
     print("=" * 60)
 
     from docpivot import (
-        get_default_lexical_config,
-        get_performance_config,
         get_debug_config,
-        get_minimal_config,
+        get_default_lexical_config,
         get_full_config,
-        get_web_config
+        get_minimal_config,
+        get_performance_config,
+        get_web_config,
     )
 
     # Show available presets
@@ -234,7 +233,7 @@ def example_9_conditional_builder():
     # Build the engine
     engine = builder.build()
 
-    print(f"\n✓ Built engine with conditional config:")
+    print("\n✓ Built engine with conditional config:")
     print(f"  Debug: {is_development}")
     print(f"  Images: {needs_images}")
     print(f"  Format: {output_format}")

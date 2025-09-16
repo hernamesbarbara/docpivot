@@ -8,11 +8,11 @@ import tempfile
 import unittest
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type
+from typing import Any
 
 from docling_core.transforms.serializer.common import BaseDocSerializer
 from docling_core.types import DoclingDocument
-from docling_core.types.doc import DocumentOrigin, NodeItem, TextItem, GroupItem
+from docling_core.types.doc import DocumentOrigin, GroupItem
 
 from .readers.basereader import BaseReader
 from .readers.custom_reader_base import CustomReaderBase
@@ -36,12 +36,12 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
             def get_test_documents(self) -> List[DoclingDocument]:
                 return [self._create_simple_document()]
     """
-    
+
     # Prevent test discovery of this abstract base class
     __test__ = False
 
     @abstractmethod
-    def get_reader_class(self) -> Optional[Type[BaseReader]]:
+    def get_reader_class(self) -> type[BaseReader] | None:
         """Get the reader class to test.
 
         Returns:
@@ -50,7 +50,7 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
         return None
 
     @abstractmethod
-    def get_serializer_class(self) -> Optional[Type[BaseDocSerializer]]:
+    def get_serializer_class(self) -> type[BaseDocSerializer] | None:
         """Get the serializer class to test.
 
         Returns:
@@ -58,7 +58,7 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
         """
         return None
 
-    def get_test_documents(self) -> List[DoclingDocument]:
+    def get_test_documents(self) -> list[DoclingDocument]:
         """Get test documents for testing.
 
         Override this method to provide custom test documents.
@@ -72,7 +72,7 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
             self._create_empty_document(),
         ]
 
-    def get_test_files(self) -> List[str]:
+    def get_test_files(self) -> list[str]:
         """Get test file paths for reader testing.
 
         Override this method to provide custom test files.
@@ -357,10 +357,10 @@ class CustomFormatTestBase(unittest.TestCase, ABC):
         # Create a structured document with nested groups
         section1 = doc.add_group(name="Section 1")
         doc.add_text(label="text", text="Content of section 1", parent=section1)
-        
+
         subsection = doc.add_group(name="Subsection 1.1", parent=section1)
         doc.add_text(label="text", text="Content of subsection 1.1", parent=subsection)
-        
+
         return doc
 
     def _create_empty_document(self) -> DoclingDocument:
@@ -393,10 +393,10 @@ class FormatTestSuite:
 
     def run_comprehensive_tests(
         self,
-        reader_class: Optional[Type[BaseReader]] = None,
-        serializer_class: Optional[Type[BaseDocSerializer]] = None,
-        test_files: Optional[List[str]] = None,
-    ) -> Dict[str, Any]:
+        reader_class: type[BaseReader] | None = None,
+        serializer_class: type[BaseDocSerializer] | None = None,
+        test_files: list[str] | None = None,
+    ) -> dict[str, Any]:
         """Run comprehensive tests on format implementations.
 
         Args:
@@ -437,8 +437,8 @@ class FormatTestSuite:
         return results
 
     def _test_reader(
-        self, reader_class: Type[BaseReader], test_files: Optional[List[str]]
-    ) -> Dict[str, Any]:
+        self, reader_class: type[BaseReader], test_files: list[str] | None
+    ) -> dict[str, Any]:
         """Test a reader class.
 
         Args:
@@ -487,8 +487,8 @@ class FormatTestSuite:
         return results
 
     def _test_serializer(
-        self, serializer_class: Type[BaseDocSerializer]
-    ) -> Dict[str, Any]:
+        self, serializer_class: type[BaseDocSerializer]
+    ) -> dict[str, Any]:
         """Test a serializer class.
 
         Args:
@@ -535,8 +535,8 @@ class FormatTestSuite:
         return results
 
     def _test_round_trip(
-        self, reader_class: Type[BaseReader], serializer_class: Type[BaseDocSerializer]
-    ) -> Dict[str, Any]:
+        self, reader_class: type[BaseReader], serializer_class: type[BaseDocSerializer]
+    ) -> dict[str, Any]:
         """Test round-trip compatibility.
 
         Args:
@@ -587,14 +587,14 @@ class FormatTestSuite:
         return DoclingDocument(
             name="empty",
             origin=DocumentOrigin(
-                mimetype="text/plain", 
+                mimetype="text/plain",
                 binary_hash="e" * 64,  # Valid SHA256 hash
                 filename="empty.txt"
             ),
             body=GroupItem(self_ref="#/body"),
         )
 
-    def generate_report(self, results: Dict[str, Any]) -> str:
+    def generate_report(self, results: dict[str, Any]) -> str:
         """Generate a human-readable test report.
 
         Args:
