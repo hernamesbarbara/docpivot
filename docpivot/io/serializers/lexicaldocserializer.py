@@ -1659,3 +1659,32 @@ class LexicalDocSerializer(BaseDocSerializer):
             The text unchanged (formatting handled in JSON structure)
         """
         return text
+
+    def serialize_footnotes(self, item: DocItem, **kwargs: Any) -> SerializationResult:
+        """Serialize footnotes for an item.
+
+        For Lexical format, footnotes would be handled within the JSON structure
+        rather than as separate serialization results.
+
+        Args:
+            item: The item to serialize footnotes for
+            **kwargs: Additional parameters
+
+        Returns:
+            Empty serialization result
+        """
+        return SerializationResult(text="")
+
+    def serialize_meta(self, **kwargs: Any) -> SerializationResult:
+        """Serialize document metadata.
+
+        For Lexical format, metadata is included in the root JSON structure
+        when include_metadata is enabled, rather than as a separate result.
+
+        Args:
+            **kwargs: Additional parameters
+
+        Returns:
+            Empty serialization result
+        """
+        return SerializationResult(text="")
